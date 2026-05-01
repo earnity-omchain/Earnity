@@ -14,8 +14,8 @@ const ASSETS = {
   fire: `${import.meta.env.BASE_URL}Fire.png`,
   water: `${import.meta.env.BASE_URL}Water.png`,
   nature: `${import.meta.env.BASE_URL}Nature.png`,
-  ice: `${import.meta.env.BASE_URL}Ice.png`,
-  lighting: `${import.meta.env.BASE_URL} Lightning.png`,
+  ice: `${import.meta.env.BASE_URL}Rock.png`,
+  lighting: `${import.meta.env.BASE_URL}Lightning.png`,
 };
 
 type Phase = "gate" | "validating" | "choice" | "rabel" | "pledge";
