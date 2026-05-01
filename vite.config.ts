@@ -22,11 +22,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: "0.0.0.0",
-    allowedHosts: true,
+    allowedHosts: "all",
   },
   preview: {
     port: 8080,
     host: "0.0.0.0",
-    allowedHosts: true,
+    allowedHosts: "all",
   },
 });
