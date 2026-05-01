@@ -32,18 +32,16 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
       <div className="min-h-[100dvh] w-full flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <div className="text-muted-foreground text-sm">Loading…</div>
+          <div className="text-muted-foreground text-sm">Loading...</div>
         </div>
       </div>
     );
   }
 
-  // Not logged in at all → gate
   if (!session?.user) {
     return <Redirect to="/" />;
   }
 
-  // Logged in but profile incomplete → onboarding
   if (!profile) {
     return <Redirect to="/connect" />;
   }
@@ -70,16 +68,10 @@ function AppRouter() {
 
   return (
     <Switch>
-      {/* Gate — no shell, full bleed background */}
       <Route path="/" component={Landing} />
-
-      {/* Onboarding — no shell */}
       <Route path="/connect" component={Connect} />
-
-      {/* OAuth callback — no shell */}
       <Route path="/auth/callback" component={AuthCallback} />
 
-      {/* Public pages with shell */}
       <Route path="/leaderboard">
         <PublicLayout>
           <Leaderboard />
@@ -100,21 +92,21 @@ function AppRouter() {
         )}
       </Route>
 
-      {/* Protected */}
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-
-      {/* 404 */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
+  const baseUrl = import.meta.env.BASE_URL;
+  const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <WouterRouter base={base}>
             <AppRouter />
           </WouterRouter>
           <Toaster />
