@@ -1,85 +1,73 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session } from "@supabase/supabase-js";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-
-interface Profile {
-  id: string;
-  username: string;
-  discord_id: string | null;
-  discord_avatar: string | null;
-  wallet_address: string | null;
-  guild_id: string | null;
-  contribution_score: number;
-}
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, queryKeys, type User } from "@/lib/api";
 
 interface AuthContextType {
-  session: Session | null;
-  profile: Profile | null;
+  user: User | null;
+  walletAddress: string | null;
+  login: (user: User) => void;
+  logout: () => void;
   isInitializing: boolean;
-  signInWithDiscord: () => void;
-  signOut: () => void;
-  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(() => {
+    return localStorage.getItem("earnity_wallet") || null;
+  });
+  const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const queryClient = useQueryClient();
 
-  const loadProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) setProfile(data);
-  };
-
-  const refreshProfile = async () => {
-    if (session?.user?.id) await loadProfile(session.user.id);
-  };
+  const { data: fetchedUser, isLoading, error } = useQuery({
+    queryKey: queryKeys.currentUser(walletAddress ?? ""),
+    queryFn: () => api.getCurrentUser(walletAddress!),
+    enabled: !!walletAddress,
+    retry: false,
+  });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user?.id) {
-        loadProfile(data.session.user.id).finally(() => setIsInitializing(false));
-      } else {
+    if (walletAddress) {
+      if (!isLoading) {
+        if (fetchedUser) {
+          setUser(fetchedUser);
+        } else if (error) {
+          localStorage.removeItem("earnity_wallet");
+          setWalletAddress(null);
+          setUser(null);
+        }
         setIsInitializing(false);
       }
-    });
+    } else {
+      setIsInitializing(false);
+    }
+  }, [walletAddress, fetchedUser, isLoading, error]);
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s?.user?.id) loadProfile(s.user.id);
-      else { setProfile(null); queryClient.clear(); }
-    });
+  const login = (newUser: User) => {
+    localStorage.setItem("earnity_wallet", newUser.walletAddress);
+    setWalletAddress(newUser.walletAddress);
+    setUser(newUser);
+  };
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  const signInWithDiscord = () =>
-    supabase.auth.signInWithOAuth({
-      provider: "discord",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
+  const logout = () => {
+    localStorage.removeItem("earnity_wallet");
+    setWalletAddress(null);
+    setUser(null);
     queryClient.clear();
   };
 
   return (
-    <AuthContext.Provider value={{ session, profile, isInitializing, signInWithDiscord, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, walletAddress, login, logout, isInitializing }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }
