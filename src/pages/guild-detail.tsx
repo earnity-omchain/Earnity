@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, queryKeys } from "@/lib/api";
+import { api, queryKeys } from "@/lib/supabase";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 
 export default function GuildDetail({ id }: { id: string }) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   const { data: guild, isLoading } = useQuery({
     queryKey: queryKeys.guild(id),
@@ -21,22 +21,17 @@ export default function GuildDetail({ id }: { id: string }) {
     return (
       <div className="space-y-4">
         <div className="text-sm text-muted-foreground">Guild not found.</div>
-        <Link href="/guilds">
-          <Button variant="outline">Back to guilds</Button>
-        </Link>
+        <Link href="/guilds"><Button variant="outline">Back to guilds</Button></Link>
       </div>
     );
   }
 
-  const isMyGuild = user?.guildId === guild.id;
+  const isMyGuild = profile?.guild_id === guild.id;
 
   return (
     <div className="space-y-10">
       <div>
-        <Link
-          href="/guilds"
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <Link href="/guilds" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
           ← All guilds
         </Link>
         <div className="mt-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -58,9 +53,9 @@ export default function GuildDetail({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-3 border border-border rounded-md divide-x divide-border">
-        <Stat label="Members" value={guild.memberCount.toLocaleString()} />
-        <Stat label="Total score" value={guild.totalScore.toLocaleString()} />
-        <Stat label="Master" value={guild.guildMaster?.username ?? "—"} />
+        <Stat label="Members" value={guild.member_count.toLocaleString()} />
+        <Stat label="Total score" value={guild.total_score.toLocaleString()} />
+        <Stat label="Master" value={guild.guild_master?.username ?? "—"} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -76,14 +71,14 @@ export default function GuildDetail({ id }: { id: string }) {
                 </div>
                 <div className="flex-1 min-w-0 flex items-center gap-2">
                   <span className="text-sm font-medium truncate">{member.username}</span>
-                  {member.id === guild.guildMasterId && (
+                  {member.id === guild.guild_master_id && (
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border px-1.5 py-0.5 rounded">
                       Master
                     </span>
                   )}
                 </div>
                 <div className="font-mono text-sm tabular-nums">
-                  {member.contributionScore.toLocaleString()}
+                  {member.contribution_score.toLocaleString()}
                 </div>
               </div>
             ))}
@@ -95,17 +90,17 @@ export default function GuildDetail({ id }: { id: string }) {
             Top contributors
           </h2>
           <div className="border border-border rounded-md divide-y divide-border overflow-hidden">
-            {guild.topContributors.length === 0 && (
+            {guild.top_contributors.length === 0 && (
               <div className="px-4 py-6 text-sm text-muted-foreground">No contributions yet.</div>
             )}
-            {guild.topContributors.map((c, i) => (
+            {guild.top_contributors.map((c, i) => (
               <div key={c.id} className="flex items-center px-4 py-3">
                 <div className="w-8 text-sm font-mono text-muted-foreground">
                   {String(i + 1).padStart(2, "0")}
                 </div>
                 <div className="flex-1 min-w-0 text-sm font-medium truncate">{c.username}</div>
                 <div className="font-mono text-sm tabular-nums">
-                  {c.contributionScore.toLocaleString()}
+                  {c.contribution_score.toLocaleString()}
                 </div>
               </div>
             ))}

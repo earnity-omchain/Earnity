@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, queryKeys } from "@/lib/api";
+import { api, queryKeys } from "@/lib/supabase";
 import { Link } from "wouter";
 
 export default function Leaderboard() {
@@ -27,27 +27,22 @@ export default function Leaderboard() {
         <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">
           Leaderboard
         </div>
-        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
-          Live standings
-        </h1>
+        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">Live standings</h1>
         <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
           <div>
             <span className="font-mono tabular-nums text-foreground">
-              {(stats?.totalPoints ?? 0).toLocaleString()}
-            </span>{" "}
-            points
+              {(stats?.total_points ?? 0).toLocaleString()}
+            </span>{" "}points
           </div>
           <div>
             <span className="font-mono tabular-nums text-foreground">
-              {(stats?.totalContributions ?? 0).toLocaleString()}
-            </span>{" "}
-            actions
+              {(stats?.total_contributions ?? 0).toLocaleString()}
+            </span>{" "}actions
           </div>
           <div>
             <span className="font-mono tabular-nums text-foreground">
-              {(stats?.totalUsers ?? 0).toLocaleString()}
-            </span>{" "}
-            members
+              {(stats?.total_users ?? 0).toLocaleString()}
+            </span>{" "}members
           </div>
         </div>
       </div>
@@ -65,13 +60,13 @@ export default function Leaderboard() {
                 </div>
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="text-base font-medium truncate">{item.guild.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1 truncate">
-                    {item.guild.memberCount} members
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {item.guild.member_count} members
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-base tabular-nums">
-                    {item.guild.totalScore.toLocaleString()}
+                    {item.guild.total_score.toLocaleString()}
                   </div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
                     points
@@ -99,16 +94,13 @@ export default function Leaderboard() {
               <div className="flex-1 min-w-0 flex items-center gap-3">
                 <span className="text-sm font-medium truncate">{c.user.username}</span>
                 {c.guild && (
-                  <Link
-                    href={`/guild/${c.guild.id}`}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-                  >
+                  <Link href={`/guild/${c.guild.id}`} className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate">
                     {c.guild.name}
                   </Link>
                 )}
               </div>
               <div className="font-mono text-sm tabular-nums">
-                {c.user.contributionScore.toLocaleString()}
+                {c.user.contribution_score.toLocaleString()}
               </div>
             </div>
           ))}

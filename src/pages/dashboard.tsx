@@ -1,22 +1,13 @@
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, queryKeys } from "@/lib/api";
+import { api, queryKeys } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
-
-  const { data: currentUserData } = useQuery({
-    queryKey: queryKeys.user(user?.id ?? ""),
-    queryFn: () => api.getUser(user!.id),
-    enabled: !!user?.id,
-    refetchInterval: 3000,
-  });
-
-  const displayUser = currentUserData ?? user;
 
   const { data: stats } = useQuery({
     queryKey: queryKeys.overviewStats(),
@@ -37,23 +28,16 @@ export default function Dashboard() {
   });
 
   const contributeMutation = useMutation({
-    mutationFn: () => api.createContribution(displayUser!.id),
+    mutationFn: () => api.createContribution(profile!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard() });
       queryClient.invalidateQueries({ queryKey: queryKeys.overviewStats() });
       queryClient.invalidateQueries({ queryKey: queryKeys.recentContributions(8) });
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.user(user.id) });
-      }
+      refreshProfile();
     },
   });
 
-  const handleContribute = () => {
-    if (!displayUser?.id) return;
-    contributeMutation.mutate();
-  };
-
-  const userGuildRank = leaderboard?.find((g) => g.guild.id === displayUser?.guildId);
+  const userGuildRank = leaderboard?.find((g) => g.guild.id === profile?.guild_id);
 
   return (
     <div className="space-y-10">
@@ -63,13 +47,13 @@ export default function Dashboard() {
             Dashboard
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Welcome, {displayUser?.username}
+            Welcome, {profile?.username}
           </h1>
         </div>
 
-        {displayUser?.guildId ? (
+        {profile?.guild_id ? (
           <Button
-            onClick={handleContribute}
+            onClick={() => contributeMutation.mutate()}
             disabled={contributeMutation.isPending}
             className="h-11 px-6"
           >
@@ -85,14 +69,14 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 border border-border rounded-md divide-x divide-border">
-        <Stat label="Your score" value={(displayUser?.contributionScore ?? 0).toLocaleString()} />
+        <Stat label="Your score" value={(profile?.contribution_score ?? 0).toLocaleString()} />
         <Stat
           label="Your guild"
           value={userGuildRank ? userGuildRank.guild.name : "—"}
           sub={userGuildRank ? `Rank #${userGuildRank.rank}` : "Unaligned"}
         />
-        <Stat label="Total points" value={(stats?.totalPoints ?? 0).toLocaleString()} />
-        <Stat label="Members" value={(stats?.totalUsers ?? 0).toLocaleString()} />
+        <Stat label="Total points" value={(stats?.total_points ?? 0).toLocaleString()} />
+        <Stat label="Members" value={(stats?.total_users ?? 0).toLocaleString()} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -101,17 +85,13 @@ export default function Dashboard() {
             <h2 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
               Top guilds
             </h2>
-            <Link
-              href="/leaderboard"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Link href="/leaderboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               View all →
             </Link>
           </div>
-
           <div className="border border-border rounded-md divide-y divide-border overflow-hidden">
             {leaderboard?.slice(0, 5).map((item) => {
-              const isMine = item.guild.id === displayUser?.guildId;
+              const isMine = item.guild.id === profile?.guild_id;
               return (
                 <Link key={item.guild.id} href={`/guild/${item.guild.id}`}>
                   <div className="flex items-center px-4 py-3 hover:bg-secondary/40 transition-colors cursor-pointer">
@@ -128,11 +108,11 @@ export default function Dashboard() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {item.guild.memberCount} members
+                        {item.guild.member_count} members
                       </div>
                     </div>
                     <div className="font-mono text-sm tabular-nums">
-                      {item.guild.totalScore.toLocaleString()}
+                      {item.guild.total_score.toLocaleString()}
                     </div>
                   </div>
                 </Link>
@@ -157,11 +137,11 @@ export default function Dashboard() {
                     <span className="text-muted-foreground">+{event.points}</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                    {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {event.action} · {event.guildName}
+                  {event.action} · {event.guild_name}
                 </div>
               </div>
             ))}
