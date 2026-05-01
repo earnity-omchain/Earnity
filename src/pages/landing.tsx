@@ -10,12 +10,12 @@ import { api, supabase } from "@/lib/supabase";
 
 const ASSETS = {
   background: `${import.meta.env.BASE_URL}background-1.png`,
-  seal: `${import.meta.env.BASE_URL}seal1.png`,
-  fire: `${import.meta.env.BASE_URL}fire.png`,
-  water: `${import.meta.env.BASE_URL}water.png`,
-  nature: `${import.meta.env.BASE_URL}nature.png`,
-  ice: `${import.meta.env.BASE_URL}ice.png`,
-  lighting: `${import.meta.env.BASE_URL}lighting.png`,
+  seal: `${import.meta.env.BASE_URL}Seal1.png`,
+  fire: `${import.meta.env.BASE_URL}Fire.png`,
+  water: `${import.meta.env.BASE_URL}Water.png`,
+  nature: `${import.meta.env.BASE_URL}Nature.png`,
+  ice: `${import.meta.env.BASE_URL}Ice.png`,
+  lighting: `${import.meta.env.BASE_URL} Lightning.png`,
 };
 
 type Phase = "gate" | "validating" | "choice" | "rabel" | "pledge";
