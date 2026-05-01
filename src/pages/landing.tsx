@@ -14,7 +14,7 @@ const ASSETS = {
   fire: `${import.meta.env.BASE_URL}Fire.png`,
   water: `${import.meta.env.BASE_URL}Water.png`,
   nature: `${import.meta.env.BASE_URL}Nature.png`,
-  ice: `${import.meta.env.BASE_URL}Rock.png`,
+  rock: `${import.meta.env.BASE_URL}Rock.png`,
   lighting: `${import.meta.env.BASE_URL}Lightning.png`,
 };
 
@@ -24,7 +24,7 @@ const ELEMENTS = [
   { id: "fire", name: "Fire", img: ASSETS.fire, text: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10", ring: "ring-orange-500/30", glow: "shadow-orange-500/40" },
   { id: "water", name: "Water", img: ASSETS.water, text: "text-blue-400", border: "border-blue-500/40", bg: "bg-blue-500/10", ring: "ring-blue-500/30", glow: "shadow-blue-500/40" },
   { id: "nature", name: "Nature", img: ASSETS.nature, text: "text-green-400", border: "border-green-500/40", bg: "bg-green-500/10", ring: "ring-green-500/30", glow: "shadow-green-500/40" },
-  { id: "ice", name: "Ice", img: ASSETS.ice, text: "text-cyan-300", border: "border-cyan-400/40", bg: "bg-cyan-400/10", ring: "ring-cyan-400/30", glow: "shadow-cyan-400/40" },
+  { id: "rock", name: "Rock", img: ASSETS.rock, text: "text-cyan-300", border: "border-cyan-400/40", bg: "bg-cyan-400/10", ring: "ring-cyan-400/30", glow: "shadow-cyan-400/40" },
   { id: "lighting", name: "Lightning", img: ASSETS.lighting, text: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10", ring: "ring-yellow-400/30", glow: "shadow-yellow-400/40" },
 ];
 
