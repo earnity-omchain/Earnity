@@ -1,2 +1,1 @@
 # Earnity
-Guild onchain
