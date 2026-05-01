@@ -10,7 +10,7 @@ import { api, supabase } from "@/lib/supabase";
 
 const ASSETS = {
   background: `${import.meta.env.BASE_URL}background-1.png`,
-  seal: `${import.meta.env.BASE_URL}Seal1.png`,
+  seal: `${import.meta.env.BASE_URL}Seal2.png`,
   fire: `${import.meta.env.BASE_URL}Fire.png`,
   water: `${import.meta.env.BASE_URL}Water.png`,
   nature: `${import.meta.env.BASE_URL}Nature.png`,
