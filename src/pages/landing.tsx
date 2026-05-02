@@ -9,6 +9,7 @@ import {
   Loader2, Shield, Swords, CheckCircle2, AlertCircle,
   Sparkles, ArrowLeft, LogIn,
 } from "lucide-react";
+import { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
 
 const ASSETS = {
@@ -40,19 +41,49 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // ── 1. Get session (always refetch on mount for OAuth redirects) ─────────
-  const { data: session, isLoading: sessionLoading } = useQuery({
-    queryKey: ["landing-session"],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session;
-    },
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    staleTime: 0,
-  });
+  // ── 1. SESSION: direct state (NOT useQuery) to avoid stale cache on OAuth redirect ─
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
 
-  // ── 2. Get profile (only when session exists) ────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+
+    // Initial check
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setSessionReady(true);
+    });
+
+    // Real-time auth state listener — critical for OAuth
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      if (!mounted) return;
+
+      if (event === "SIGNED_IN") {
+        setSession(s);
+        setSessionReady(true);
+        if (s?.user?.id) {
+          queryClient.invalidateQueries({ queryKey: ["landing-profile", s.user.id] });
+        }
+      }
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setSessionReady(true);
+        setPhase("gate");
+      }
+      if (event === "INITIAL_SESSION") {
+        setSession(s);
+        setSessionReady(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  // ── 2. PROFILE (only when session exists) ───────────────────────────────
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["landing-profile", session?.user?.id],
     queryFn: async () => {
@@ -64,51 +95,31 @@ export default function Landing() {
       return data;
     },
     enabled: !!session?.user?.id,
-    // Retry a few times — profile is created by a DB trigger after OAuth
     retry: 5,
     retryDelay: 800,
-    refetchOnMount: "always",
     staleTime: 0,
   });
 
-  // ── 3. Listen for auth state changes (critical for OAuth redirect) ─────────
+  // ── 3. Route based on auth + profile state ──────────────────────────────
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
-      if (event === "SIGNED_IN") {
-        queryClient.invalidateQueries({ queryKey: ["landing-session"] });
-        if (s?.user?.id) {
-          queryClient.invalidateQueries({ queryKey: ["landing-profile", s.user.id] });
-        }
-      }
-      if (event === "SIGNED_OUT") {
-        queryClient.invalidateQueries({ queryKey: ["landing-session"] });
-        setPhase("gate");
-      }
-    });
-    return () => listener.subscription.unsubscribe();
-  }, [queryClient]);
-
-  // ── 4. Route based on auth + profile state ───────────────────────────────
-  useEffect(() => {
-    if (sessionLoading) return;
+    if (!sessionReady) return;
     if (!session) { setPhase("gate"); return; }
     if (profileLoading) { setPhase("loading"); return; }
 
     if (!profile?.invite_code_used) { setPhase("code"); return; }
     if (!profile?.guild_id)         { setPhase("choice"); return; }
 
-    // Fully onboarded — finish profile if needed, else go to dashboard
     if (!profile.username || !profile.wallet_address) {
       setLocation("/connect");
     } else {
       setLocation("/dashboard");
     }
-  }, [session, profile, sessionLoading, profileLoading, setLocation]);
+  }, [session, profile, sessionReady, profileLoading, setLocation]);
 
-  // ── Discord login ──────────────────────────────────────────────────────────
+  // ── Discord login ───────────────────────────────────────────────────────
   const handleDiscordLogin = () => auth.signInWithDiscord();
 
-  // ── Redeem invite code ─────────────────────────────────────────────────────
+  // ── Redeem invite code ────────────────────────────────────────────────────
   const validateMutation = useMutation({
     mutationFn: async (accessCode: string) => {
       if (!session?.user?.id) throw new Error("Not authenticated");
@@ -126,11 +137,10 @@ export default function Landing() {
     },
   });
 
-  // ── Create guild (Rabel) ───────────────────────────────────────────────────
+  // ── Create guild (Rabel) ────────────────────────────────────────────────
   const createGuildMutation = useMutation({
     mutationFn: api.createGuild,
     onSuccess: () => {
-      // Guild created — now finish profile setup (username + wallet)
       setTimeout(() => setLocation("/connect"), 800);
     },
   });
@@ -150,7 +160,7 @@ export default function Landing() {
 
   const selectedEl = ELEMENTS.find((e) => e.id === selectedElement);
 
-  // ── Loading spinner ────────────────────────────────────────────────────────
+  // ── Loading spinner ───────────────────────────────────────────────────────
   if (phase === "loading") {
     return (
       <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black">
