@@ -1,37 +1,68 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { Shield } from "lucide-react";
-import { SiDiscord } from "react-icons/si";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 
 const ASSETS = {
   background: `${import.meta.env.BASE_URL}background-1.png`,
+  seal: `${import.meta.env.BASE_URL}Seal2.png`,
 };
 
-export default function Landing() {
-  const { session, profile, isInitializing } = useAuth();
-  const [, setLocation] = useLocation();
+type Phase = "gate" | "signing_in" | "code" | "done";
 
-  // Redirect if already authenticated
+export default function Landing() {
+  const { session, profile, isInitializing, refreshProfile } = useAuth();
+  const [, setLocation] = useLocation();
+  const [phase, setPhase] = useState<Phase>("gate");
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
+
+  // Redirect if already fully set up
   useEffect(() => {
     if (isInitializing) return;
-    if (!session) return;
+    if (!session) { setPhase("gate"); return; }
     if (!profile?.invite_code_used) {
-      setLocation("/connect");
-    } else if (!profile?.guild_id) {
-      setLocation("/connect");
+      // Logged in but no code yet — show code entry
+      setPhase("code");
     } else {
-      setLocation("/dashboard");
+      // Fully set up
+      setLocation("/connect");
     }
   }, [session, profile, isInitializing, setLocation]);
 
   const handleDiscordLogin = () => {
+    setPhase("signing_in");
     supabase.auth.signInWithOAuth({
       provider: "discord",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+  };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user?.id || !code.trim()) return;
+    setCodeError("");
+    setCodeLoading(true);
+
+    const { data, error } = await supabase.rpc("redeem_invite_code", {
+      p_user_id: session.user.id,
+      p_code: code.trim().toUpperCase(),
+    });
+
+    setCodeLoading(false);
+
+    if (error || !data?.success) {
+      setCodeError(data?.error || error?.message || "Invalid or already used code");
+      return;
+    }
+
+    await refreshProfile();
+    setLocation("/connect");
   };
 
   if (isInitializing) {
@@ -49,50 +80,125 @@ export default function Landing() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${ASSETS.background})` }}
       />
-      <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-black/60" />
 
-      {/* Content */}
       <div className="relative z-10 min-h-[100dvh] flex flex-col items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", damping: 20, delay: 0.1 }}
-          className="w-full max-w-sm text-center"
-        >
-          {/* Logo */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", delay: 0.2 }}
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-2xl"
-          >
-            <Shield className="w-10 h-10 text-white" />
-          </motion.div>
+        <AnimatePresence mode="wait">
 
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Earnity</h1>
-          <p className="text-sm text-white/50 mb-10">Private beta — invite only</p>
+          {/* ── GATE: Enter access code ── */}
+          {(phase === "gate" || phase === "signing_in") && (
+            <motion.div
+              key="gate"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-sm text-center"
+            >
+              {/* Seal */}
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, type: "spring" }}
+                className="w-20 h-20 mx-auto mb-6"
+              >
+                <img
+                  src={ASSETS.seal}
+                  alt="Earnity"
+                  className="w-full h-full object-contain drop-shadow-2xl"
+                  onError={(e) => {
+                    // fallback shield if image missing
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </motion.div>
 
-          {/* Discord Login */}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            onClick={handleDiscordLogin}
-            className="w-full h-14 flex items-center justify-center gap-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition-colors shadow-lg"
-          >
-            <SiDiscord className="w-5 h-5 text-[#5865F2]" />
-            Sign in with Discord
-          </motion.button>
+              <h1 className="text-4xl font-bold tracking-tight mb-2">Earnity</h1>
+              <p className="text-sm text-white/50 mb-8">Enter your access code to enter the protocol</p>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-5 text-xs text-white/30"
-          >
-            50 access codes only. Discord required.
-          </motion.p>
-        </motion.div>
+              <form onSubmit={(e) => { e.preventDefault(); handleDiscordLogin(); }} className="space-y-3">
+                <Input
+                  readOnly
+                  value=""
+                  placeholder="ACCESS CODE"
+                  onClick={handleDiscordLogin}
+                  className="h-14 text-center text-lg font-mono tracking-[0.2em] uppercase bg-black/50 border-white/20 text-white placeholder:text-white/30 cursor-pointer"
+                />
+                <Button
+                  type="button"
+                  onClick={handleDiscordLogin}
+                  disabled={phase === "signing_in"}
+                  className="w-full h-12 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold backdrop-blur-md"
+                >
+                  {phase === "signing_in" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Sign in with Discord"
+                  )}
+                </Button>
+              </form>
+
+              <p className="mt-5 text-xs text-white/30">
+                Private beta — 50 access codes only
+              </p>
+            </motion.div>
+          )}
+
+          {/* ── CODE ENTRY: After Discord login ── */}
+          {phase === "code" && (
+            <motion.div
+              key="code"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-sm text-center"
+            >
+              <motion.div
+                className="w-20 h-20 mx-auto mb-6"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, type: "spring" }}
+              >
+                <img
+                  src={ASSETS.seal}
+                  alt="Earnity"
+                  className="w-full h-full object-contain drop-shadow-2xl"
+                />
+              </motion.div>
+
+              <h1 className="text-4xl font-bold tracking-tight mb-2">Earnity</h1>
+              <p className="text-sm text-white/50 mb-8">Enter your access code to enter the protocol</p>
+
+              <form onSubmit={handleCodeSubmit} className="space-y-3">
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  placeholder="ACCESS CODE"
+                  maxLength={8}
+                  className="h-14 text-center text-lg font-mono tracking-[0.2em] uppercase bg-black/50 border-white/20 text-white placeholder:text-white/30"
+                  disabled={codeLoading}
+                  autoFocus
+                />
+                {codeError && (
+                  <p className="text-sm text-red-400">{codeError}</p>
+                )}
+                <Button
+                  type="submit"
+                  disabled={codeLoading || code.length < 6}
+                  className="w-full h-12 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold backdrop-blur-md"
+                >
+                  {codeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enter"}
+                </Button>
+              </form>
+
+              <p className="mt-5 text-xs text-white/30">
+                Private beta — 50 access codes only
+              </p>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
     </div>
   );
