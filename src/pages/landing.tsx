@@ -40,16 +40,19 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // ── 1. Get session ─────────────────────────────────────────────────────────
+  // ── 1. Get session (always refetch on mount for OAuth redirects) ─────────
   const { data: session, isLoading: sessionLoading } = useQuery({
     queryKey: ["landing-session"],
     queryFn: async () => {
       const { data } = await supabase.auth.getSession();
       return data.session;
     },
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
-  // ── 2. Get profile (only when session exists) ──────────────────────────────
+  // ── 2. Get profile (only when session exists) ────────────────────────────
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["landing-profile", session?.user?.id],
     queryFn: async () => {
@@ -64,9 +67,28 @@ export default function Landing() {
     // Retry a few times — profile is created by a DB trigger after OAuth
     retry: 5,
     retryDelay: 800,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
-  // ── 3. Route based on auth + profile state ─────────────────────────────────
+  // ── 3. Listen for auth state changes (critical for OAuth redirect) ─────────
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "SIGNED_IN") {
+        queryClient.invalidateQueries({ queryKey: ["landing-session"] });
+        if (s?.user?.id) {
+          queryClient.invalidateQueries({ queryKey: ["landing-profile", s.user.id] });
+        }
+      }
+      if (event === "SIGNED_OUT") {
+        queryClient.invalidateQueries({ queryKey: ["landing-session"] });
+        setPhase("gate");
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [queryClient]);
+
+  // ── 4. Route based on auth + profile state ───────────────────────────────
   useEffect(() => {
     if (sessionLoading) return;
     if (!session) { setPhase("gate"); return; }
@@ -84,7 +106,6 @@ export default function Landing() {
   }, [session, profile, sessionLoading, profileLoading, setLocation]);
 
   // ── Discord login ──────────────────────────────────────────────────────────
-  // auth.signInWithDiscord triggers a redirect — no need to await
   const handleDiscordLogin = () => auth.signInWithDiscord();
 
   // ── Redeem invite code ─────────────────────────────────────────────────────
