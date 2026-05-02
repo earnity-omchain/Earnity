@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowLeft, Shield, Swords, Sparkles, CheckCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Shield, Swords, CheckCircle } from "lucide-react";
 
 const ELEMENTS = [
   { id: "fire",      name: "Fire",      emoji: "🔥", color: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10" },
@@ -17,63 +17,33 @@ const ELEMENTS = [
   { id: "lightning", name: "Lightning", emoji: "⚡", color: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10" },
 ] as const;
 
-type Step = "code" | "choice" | "rebel" | "pledge" | "done";
+type Step = "choice" | "rebel" | "pledge";
 
 export default function Connect() {
   const { session, profile, isInitializing, refreshProfile } = useAuth();
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState<Step>("code");
-  const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState("");
+  const [step, setStep] = useState<Step>("choice");
   const [guildName, setGuildName] = useState("");
   const [element, setElement] = useState<string | null>(null);
   const [xUsername, setXUsername] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  // Redirect if not logged in
+  // Guard: must be logged in with redeemed code
   useEffect(() => {
-    if (!isInitializing && !session) setLocation("/");
-  }, [session, isInitializing, setLocation]);
+    if (isInitializing) return;
+    if (!session) { setLocation("/"); return; }
+    if (!profile?.invite_code_used) { setLocation("/"); return; }
+    if (profile?.guild_id) { setLocation("/dashboard"); }
+  }, [session, profile, isInitializing, setLocation]);
 
-  // Redirect if already fully set up
-  useEffect(() => {
-    if (!profile) return;
-    if (profile.invite_code_used && profile.guild_id) {
-      setLocation("/dashboard");
-    } else if (profile.invite_code_used) {
-      setStep("choice");
-    }
-  }, [profile, setLocation]);
-
-  // Fetch guilds for pledge step
+  // Fetch guilds for pledge
   const { data: guilds, isLoading: guildsLoading } = useQuery({
     queryKey: queryKeys.guilds(),
     queryFn: api.listGuilds,
     enabled: step === "pledge",
   });
 
-  // Redeem invite code
-  const redeemMutation = useMutation({
-    mutationFn: async () => {
-      if (!session?.user?.id) throw new Error("Not authenticated");
-      const result = await supabase.rpc("redeem_invite_code", {
-        p_user_id: session.user.id,
-        p_code: code.trim().toUpperCase(),
-      });
-      if (result.error) throw result.error;
-      if (!result.data?.success) throw new Error(result.data?.error || "Invalid code");
-      return result.data;
-    },
-    onSuccess: async () => {
-      await refreshProfile();
-      setStep("choice");
-    },
-    onError: (err: Error) => {
-      setCodeError(err.message || "Invalid or already used code");
-    },
-  });
-
-  // Submit guild request (rebel path)
+  // Guild request (rebel)
   const guildRequestMutation = useMutation({
     mutationFn: async () => {
       if (!session?.user?.id) throw new Error("Not authenticated");
@@ -88,7 +58,7 @@ export default function Connect() {
     onSuccess: () => setSubmitted(true),
   });
 
-  // Join guild (pledge path)
+  // Join guild (pledge)
   const joinGuildMutation = useMutation({
     mutationFn: async (guildId: string) => {
       if (!session?.user?.id) throw new Error("Not authenticated");
@@ -99,17 +69,6 @@ export default function Connect() {
       setLocation("/dashboard");
     },
   });
-
-  const handleCodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCodeError("");
-    redeemMutation.mutate();
-  };
-
-  const handleGuildRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    guildRequestMutation.mutate();
-  };
 
   if (isInitializing || !session) {
     return (
@@ -124,7 +83,7 @@ export default function Connect() {
       <div className="flex-1 flex items-center justify-center p-6">
         <AnimatePresence mode="wait">
           <motion.div
-            key={step}
+            key={step + (submitted ? "-done" : "")}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
@@ -132,53 +91,16 @@ export default function Connect() {
             className="w-full max-w-sm"
           >
 
-            {/* ── STEP 1: INVITE CODE ── */}
-            {step === "code" && (
-              <div>
-                <div className="mb-8">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 01</div>
-                  <h1 className="text-3xl font-semibold tracking-tight">Enter your code</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Earnity is invite-only. Each code is single-use and bound to your Discord.
-                  </p>
-                </div>
-                <form onSubmit={handleCodeSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                      Invite code
-                    </Label>
-                    <Input
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                      placeholder="XXXXXXXX"
-                      className="font-mono text-lg tracking-[0.2em] text-center h-14 bg-card border-border uppercase"
-                      maxLength={8}
-                      disabled={redeemMutation.isPending}
-                      autoFocus
-                    />
-                  </div>
-                  {codeError && (
-                    <p className="text-sm text-destructive">{codeError}</p>
-                  )}
-                  <Button
-                    type="submit"
-                    className="w-full h-11"
-                    disabled={redeemMutation.isPending || code.length < 6}
-                  >
-                    {redeemMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify code"}
-                  </Button>
-                </form>
-              </div>
-            )}
-
-            {/* ── STEP 2: CHOICE ── */}
+            {/* ── CHOICE ── */}
             {step === "choice" && (
               <div>
                 <div className="mb-8">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 02</div>
-                  <h1 className="text-3xl font-semibold tracking-tight">Choose your path</h1>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+                    Choose your path
+                  </div>
+                  <h1 className="text-3xl font-semibold tracking-tight">Allegiance</h1>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    This defines who you are. Choose carefully.
+                    This defines who you are in Earnity. Choose carefully.
                   </p>
                 </div>
                 <div className="space-y-4">
@@ -208,14 +130,14 @@ export default function Connect() {
                       <div className="font-semibold">Rebel</div>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Create your own guild. Lead from the front. Only 20 guilds will ever exist — first come, first served.
+                      Create your own guild. Lead from the front. Only 20 guilds will ever exist.
                     </p>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 3A: REBEL (Guild Request) ── */}
+            {/* ── REBEL ── */}
             {step === "rebel" && !submitted && (
               <div>
                 <button
@@ -228,11 +150,11 @@ export default function Connect() {
                   <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Guild Request</div>
                   <h1 className="text-3xl font-semibold tracking-tight">Create a Guild</h1>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    We'll review and set up your guild. You'll be assigned Guild Master.
+                    Submit your request. We'll review and assign you as Guild Master.
                   </p>
                 </div>
 
-                <form onSubmit={handleGuildRequest} className="space-y-5">
+                <form onSubmit={(e) => { e.preventDefault(); guildRequestMutation.mutate(); }} className="space-y-5">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">Guild name</Label>
                     <Input
@@ -281,7 +203,9 @@ export default function Connect() {
 
                   {guildRequestMutation.isError && (
                     <p className="text-sm text-destructive">
-                      {guildRequestMutation.error instanceof Error ? guildRequestMutation.error.message : "Failed to submit"}
+                      {guildRequestMutation.error instanceof Error
+                        ? guildRequestMutation.error.message
+                        : "Failed to submit request"}
                     </p>
                   )}
 
@@ -298,12 +222,12 @@ export default function Connect() {
 
             {/* ── REBEL SUCCESS ── */}
             {step === "rebel" && submitted && (
-              <div className="text-center space-y-5">
+              <div className="text-center space-y-5 py-4">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto" />
                 <div>
                   <h2 className="text-2xl font-semibold">Request sent</h2>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Your guild request is in. We'll review it and set you up as Guild Master before the countdown ends.
+                    Your guild request is in. We'll set you up as Guild Master before the countdown ends.
                   </p>
                 </div>
                 <Button className="w-full" onClick={() => setLocation("/leaderboard")}>
@@ -312,7 +236,7 @@ export default function Connect() {
               </div>
             )}
 
-            {/* ── STEP 3B: PLEDGE (Join Guild) ── */}
+            {/* ── PLEDGE ── */}
             {step === "pledge" && (
               <div>
                 <button
@@ -322,7 +246,7 @@ export default function Connect() {
                   <ArrowLeft className="w-3 h-3" /> Back
                 </button>
                 <div className="mb-6">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 03</div>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Pledge</div>
                   <h1 className="text-3xl font-semibold tracking-tight">Swear Allegiance</h1>
                   <p className="mt-2 text-sm text-muted-foreground">Choose your guild. This cannot be changed.</p>
                 </div>
@@ -333,7 +257,7 @@ export default function Connect() {
                   </div>
                 ) : guilds?.length === 0 ? (
                   <div className="text-center py-8 text-sm text-muted-foreground">
-                    No guilds available yet. Check back after the countdown.
+                    No guilds yet. Check back after the countdown.
                   </div>
                 ) : (
                   <div className="space-y-3">
