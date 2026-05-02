@@ -8,25 +8,31 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuth = async () => {
-      await new Promise((r) => setTimeout(r, 500));
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session) {
+      try {
+        // Extract the OAuth code from the URL query params
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+
+        if (code) {
+          // Explicitly exchange the authorization code for a session.
+          // This is required for the PKCE flow to complete.
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error("Code exchange failed:", error.message);
+          }
+        }
+
+        // Brief pause to let the session propagate through listeners
+        await new Promise((r) => setTimeout(r, 600));
+      } catch (err) {
+        console.error("Auth callback error:", err);
+      } finally {
+        // Always redirect to landing — it handles all routing logic
+        // based on whether the user has entered an access code / joined a guild.
         setLocation("/");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("invite_code_used, guild_id")
-        .eq("id", session.user.id)
-        .single();
-      if (!profile?.invite_code_used) {
-        setLocation("/");
-      } else if (!profile?.guild_id) {
-        setLocation("/");
-      } else {
-        setLocation("/dashboard");
       }
     };
+
     handleAuth();
   }, [setLocation]);
 
@@ -34,7 +40,7 @@ export default function AuthCallback() {
     <div className="min-h-[100dvh] flex items-center justify-center bg-background">
       <div className="text-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-4" />
-        <p className="text-sm text-muted-foreground">Authenticating...</p>
+        <p className="text-sm text-muted-foreground">Completing sign in...</p>
       </div>
     </div>
   );
