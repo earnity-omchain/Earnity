@@ -77,6 +77,16 @@ export interface InviteCode {
   created_at: string;
 }
 
+export interface GuildRequest {
+  id: string;
+  user_id: string;
+  guild_name: string;
+  element: string;
+  x_username: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
 // ── Query keys ────────────────────────────────────────────────────────────────
 
 export const queryKeys = {
@@ -106,7 +116,7 @@ export const auth = {
     supabase.auth.onAuthStateChange(callback),
 };
 
-// ── Profile ───────────────────────────────────────────────────────────────────
+// ── API ───────────────────────────────────────────────────────────────────────
 
 export const api = {
   getProfile: async (userId: string): Promise<Profile> => {
@@ -143,7 +153,7 @@ export const api = {
     return data;
   },
 
-  // ── Invite Codes ─────────────────────────────────────────────────────────────
+  // ── Invite Codes ────────────────────────────────────────────────────────────
 
   validateInviteCode: async (code: string): Promise<InviteCode> => {
     const { data, error } = await supabase
@@ -153,7 +163,6 @@ export const api = {
       .eq("is_active", true)
       .is("used_by", null)
       .single();
-
     if (error || !data) throw new Error("Invalid or already used code");
     return data;
   },
@@ -166,7 +175,6 @@ export const api = {
       p_user_id: userData.user.id,
       p_code: code,
     });
-
     if (error) throw error;
     return data;
   },
@@ -184,38 +192,23 @@ export const api = {
 
   getGuild: async (id: string): Promise<GuildDetail> => {
     const [leaderboardRes, membersRes] = await Promise.all([
-      supabase
-        .from("guild_leaderboard")
-        .select("*")
-        .eq("id", id)
-        .single(),
-      supabase
-        .from("profiles")
-        .select("id, username, contribution_score")
-        .eq("guild_id", id)
-        .order("contribution_score", { ascending: false }),
+      supabase.from("guild_leaderboard").select("*").eq("id", id).single(),
+      supabase.from("profiles").select("id, username, contribution_score").eq("guild_id", id).order("contribution_score", { ascending: false }),
     ]);
-
     if (leaderboardRes.error) throw leaderboardRes.error;
     if (membersRes.error) throw membersRes.error;
 
     const guild = leaderboardRes.data;
     const members = membersRes.data ?? [];
-
     let guildMaster = null;
     if (guild.guild_master_id) {
       const masterMember = members.find((m) => m.id === guild.guild_master_id);
       if (masterMember) guildMaster = { username: masterMember.username };
     }
-
-    return {
-      ...guild,
-      guild_master: guildMaster,
-      members,
-      top_contributors: members.slice(0, 5),
-    };
+    return { ...guild, guild_master: guildMaster, members, top_contributors: members.slice(0, 5) };
   },
 
+  // Direct guild creation (admin use only)
   createGuild: async ({ name, element }: { name: string; element: string }): Promise<Guild> => {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error("Not authenticated");
@@ -230,9 +223,30 @@ export const api = {
       })
       .select()
       .single();
-
     if (error) throw error;
     return data;
+  },
+
+  // Submit a guild request (pending your approval, capped at 20 guilds)
+  submitGuildRequest: async ({ name, element, xUsername }: {
+    name: string;
+    element: string;
+    xUsername: string;
+  }): Promise<void> => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("Not authenticated");
+
+    const { error } = await supabase
+      .from("guild_requests")
+      .insert({
+        user_id: userData.user.id,
+        guild_name: name.trim(),
+        element,
+        x_username: xUsername.replace(/^@/, "").trim(),
+        status: "pending",
+      });
+
+    if (error) throw error;
   },
 
   joinGuild: async (userId: string, guildId: string): Promise<Profile> => {
@@ -278,12 +292,7 @@ export const api = {
     if (error) throw error;
     return (data ?? []).map((g) => ({
       rank: g.rank,
-      guild: {
-        id: g.id,
-        name: g.name,
-        member_count: g.member_count,
-        total_score: g.total_score,
-      },
+      guild: { id: g.id, name: g.name, member_count: g.member_count, total_score: g.total_score },
     }));
   },
 
@@ -293,12 +302,7 @@ export const api = {
       supabase.from("contributions").select("id", { count: "exact", head: true }),
       supabase.from("profiles").select("id", { count: "exact", head: true }),
     ]);
-
-    const totalPoints = (pointsRes.data ?? []).reduce(
-      (sum, p) => sum + (p.contribution_score ?? 0),
-      0
-    );
-
+    const totalPoints = (pointsRes.data ?? []).reduce((sum, p) => sum + (p.contribution_score ?? 0), 0);
     return {
       total_points: totalPoints,
       total_contributions: contributionsRes.count ?? 0,
@@ -313,11 +317,10 @@ export const api = {
       .order("contribution_score", { ascending: false })
       .limit(limit);
     if (error) throw error;
-
     return (data ?? []).map((p, i) => ({
       rank: i + 1,
       user: { id: p.id, username: p.username, contribution_score: p.contribution_score },
       guild: p.guilds ? { id: (p.guilds as any).id, name: (p.guilds as any).name } : null,
     }));
   },
-}
+};
