@@ -216,7 +216,8 @@ export default function Landing() {
   });
 
   const createGuildMutation = useMutation({
-    mutationFn: api.createGuild,
+  mutationFn: ({ name, element, xUsername }: { name: string; element: string; xUsername: string }) =>
+    api.submitGuildRequest({ name, element, xUsername }),
     onSuccess: () => {
       setTimeout(() => setLocation("/connect"), 800);
     },
