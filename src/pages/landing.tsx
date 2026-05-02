@@ -38,6 +38,7 @@ export default function Landing() {
   const [codeError, setCodeError] = useState("");
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [guildName, setGuildName] = useState("");
+  const [xUsername, setXUsername] = useState("");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
@@ -84,22 +85,19 @@ export default function Landing() {
   }, [queryClient]);
 
   // ── 2. PROFILE (only when session exists) ───────────────────────────────
-  // Select * so missing columns don't break the query
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["landing-profile", session?.user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
-        .select("*")
+        .select("guild_id, invite_code_used, username, wallet_address")
         .eq("id", session!.user.id)
         .single();
-      // PGRST116 = row not found (profile trigger hasn't fired yet) — return null to retry
-      if (error) return null;
       return data;
     },
     enabled: !!session?.user?.id,
-    retry: 10,
-    retryDelay: 600,
+    retry: 5,
+    retryDelay: 800,
     staleTime: 0,
   });
 
@@ -107,15 +105,12 @@ export default function Landing() {
   useEffect(() => {
     if (!sessionReady) return;
     if (!session) { setPhase("gate"); return; }
-    // Profile row not yet created by DB trigger — keep showing spinner
-    if (profileLoading || profile === null) { setPhase("loading"); return; }
+    if (profileLoading) { setPhase("loading"); return; }
 
-    // invite_code_used may be undefined if migration not run yet — treat as null
-    const codeUsed = (profile as any)?.invite_code_used ?? null;
-    if (!codeUsed) { setPhase("code"); return; }
-    if (!profile?.guild_id) { setPhase("choice"); return; }
+    if (!profile?.invite_code_used) { setPhase("code"); return; }
+    if (!profile?.guild_id)         { setPhase("choice"); return; }
 
-    if (!(profile as any).username || !(profile as any).wallet_address) {
+    if (!profile.username || !profile.wallet_address) {
       setLocation("/connect");
     } else {
       setLocation("/dashboard");
@@ -160,8 +155,8 @@ export default function Landing() {
 
   const handleGuildSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedElement || !guildName.trim()) return;
-    createGuildMutation.mutate({ name: guildName.trim(), element: selectedElement });
+    if (!selectedElement || !guildName.trim() || !xUsername.trim()) return;
+    createGuildMutation.mutate({ name: guildName.trim(), element: selectedElement, xUsername: xUsername.trim() });
   };
 
   const selectedEl = ELEMENTS.find((e) => e.id === selectedElement);
@@ -304,7 +299,7 @@ export default function Landing() {
             <motion.div key="rabel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6">
               <div className="w-full max-w-xl">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
-                  <button onClick={() => { setPhase("choice"); setSelectedElement(null); setGuildName(""); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4">
+                  <button onClick={() => { setPhase("choice"); setSelectedElement(null); setGuildName(""); setXUsername(""); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4">
                     <ArrowLeft className="w-3 h-3" /> Back
                   </button>
                   <h2 className="text-2xl font-bold tracking-tight">Choose your element</h2>
@@ -357,8 +352,15 @@ export default function Landing() {
                             <Label htmlFor="guild" className="text-xs uppercase tracking-wider text-muted-foreground">Guild Name</Label>
                             <Input id="guild" value={guildName} onChange={(e) => setGuildName(e.target.value)} placeholder="e.g. Emberborn" className="bg-black/40 border-border/60 h-11" disabled={createGuildMutation.isPending} maxLength={30} autoFocus />
                           </div>
-                          <Button type="submit" className="w-full h-11 font-semibold" disabled={createGuildMutation.isPending || guildName.trim().length < 2}>
-                            {createGuildMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Guild"}
+                          <div className="space-y-2">
+                            <Label htmlFor="xusername" className="text-xs uppercase tracking-wider text-muted-foreground">X (Twitter) Username</Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                              <Input id="xusername" value={xUsername} onChange={(e) => setXUsername(e.target.value.replace(/^@/, ""))} placeholder="yourhandle" className="bg-black/40 border-border/60 h-11 pl-7" disabled={createGuildMutation.isPending} maxLength={50} />
+                            </div>
+                          </div>
+                          <Button type="submit" className="w-full h-11 font-semibold" disabled={createGuildMutation.isPending || guildName.trim().length < 2 || !xUsername.trim()}>
+                            {createGuildMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Request"}
                           </Button>
                           {createGuildMutation.isError && (
                             <p className="text-sm text-destructive text-center">
