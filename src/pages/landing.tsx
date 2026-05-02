@@ -84,19 +84,22 @@ export default function Landing() {
   }, [queryClient]);
 
   // ── 2. PROFILE (only when session exists) ───────────────────────────────
+  // Select * so missing columns don't break the query
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["landing-profile", session?.user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select("guild_id, invite_code_used, username, wallet_address")
+        .select("*")
         .eq("id", session!.user.id)
         .single();
+      // PGRST116 = row not found (profile trigger hasn't fired yet) — return null to retry
+      if (error) return null;
       return data;
     },
     enabled: !!session?.user?.id,
-    retry: 5,
-    retryDelay: 800,
+    retry: 10,
+    retryDelay: 600,
     staleTime: 0,
   });
 
@@ -104,12 +107,15 @@ export default function Landing() {
   useEffect(() => {
     if (!sessionReady) return;
     if (!session) { setPhase("gate"); return; }
-    if (profileLoading) { setPhase("loading"); return; }
+    // Profile row not yet created by DB trigger — keep showing spinner
+    if (profileLoading || profile === null) { setPhase("loading"); return; }
 
-    if (!profile?.invite_code_used) { setPhase("code"); return; }
-    if (!profile?.guild_id)         { setPhase("choice"); return; }
+    // invite_code_used may be undefined if migration not run yet — treat as null
+    const codeUsed = (profile as any)?.invite_code_used ?? null;
+    if (!codeUsed) { setPhase("code"); return; }
+    if (!profile?.guild_id) { setPhase("choice"); return; }
 
-    if (!profile.username || !profile.wallet_address) {
+    if (!(profile as any).username || !(profile as any).wallet_address) {
       setLocation("/connect");
     } else {
       setLocation("/dashboard");
