@@ -12,6 +12,7 @@ import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -38,13 +39,8 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
     );
   }
 
-  if (!session?.user) {
-    return <Redirect to="/" />;
-  }
-
-  if (!profile) {
-    return <Redirect to="/connect" />;
-  }
+  if (!session?.user) return <Redirect to="/" />;
+  if (!profile) return <Redirect to="/connect" />;
 
   return (
     <Layout>
@@ -55,9 +51,7 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
-  if (profile) {
-    return <Layout>{children}</Layout>;
-  }
+  if (profile) return <Layout>{children}</Layout>;
   return <PublicShell>{children}</PublicShell>;
 }
 
@@ -73,26 +67,23 @@ function AppRouter() {
       <Route path="/auth/callback" component={AuthCallback} />
 
       <Route path="/leaderboard">
-        <PublicLayout>
-          <Leaderboard />
-        </PublicLayout>
+        <PublicLayout><Leaderboard /></PublicLayout>
       </Route>
 
       <Route path="/guilds">
-        <PublicLayout>
-          <Guilds />
-        </PublicLayout>
+        <PublicLayout><Guilds /></PublicLayout>
       </Route>
 
       <Route path="/guild/:id">
         {(params) => (
-          <PublicLayout>
-            <GuildDetail id={params.id} />
-          </PublicLayout>
+          <PublicLayout><GuildDetail id={params.id} /></PublicLayout>
         )}
       </Route>
 
+      {/* Protected routes */}
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+
       <Route component={NotFound} />
     </Switch>
   );
