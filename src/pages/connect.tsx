@@ -1,76 +1,87 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, supabase, queryKeys } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowLeft, Shield, Swords, CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Loader2, ArrowLeft, Wallet, User } from "lucide-react";
 
-const ELEMENTS = [
-  { id: "fire",      name: "Fire",      emoji: "🔥", color: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10" },
-  { id: "water",     name: "Water",     emoji: "💧", color: "text-blue-400",   border: "border-blue-500/40",   bg: "bg-blue-500/10"   },
-  { id: "nature",    name: "Nature",    emoji: "🌿", color: "text-green-400",  border: "border-green-500/40",  bg: "bg-green-500/10"  },
-  { id: "rock",      name: "Rock",      emoji: "🪨", color: "text-stone-400",  border: "border-stone-500/40",  bg: "bg-stone-500/10"  },
-  { id: "lightning", name: "Lightning", emoji: "⚡", color: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10" },
-] as const;
+const ASSETS = {
+  logo: import.meta.env.BASE_URL + "logo.jpg",
+};
 
-type Step = "choice" | "rebel" | "pledge";
+type Step = "profile" | "wallet" | "guild";
 
 export default function Connect() {
-  const { session, profile, isInitializing, refreshProfile } = useAuth();
+  const [step, setStep] = useState<Step>("profile");
+  const [username, setUsername] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
+  const { session, profile } = useAuth();
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState<Step>("choice");
-  const [guildName, setGuildName] = useState("");
-  const [element, setElement] = useState<string | null>(null);
-  const [xUsername, setXUsername] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
-  // Guard: must be logged in with redeemed code
   useEffect(() => {
-    if (isInitializing) return;
-    if (!session) { setLocation("/"); return; }
-    if (!profile?.invite_code_used) { setLocation("/"); return; }
-    if (profile?.guild_id) { setLocation("/dashboard"); }
-  }, [session, profile, isInitializing, setLocation]);
+    if (!session) { setLocation("/"); }
+  }, [session, setLocation]);
 
-  // Fetch guilds for pledge
   const { data: guilds, isLoading: guildsLoading } = useQuery({
     queryKey: queryKeys.guilds(),
     queryFn: api.listGuilds,
-    enabled: step === "pledge",
+    enabled: step === "guild",
   });
 
-  // Guild request (rebel)
-  const guildRequestMutation = useMutation({
+  useEffect(() => {
+    if (!profile) { setStep("profile"); return; }
+    if (!profile.wallet_address) { setStep("wallet"); return; }
+    if (!profile.guild_id) { setStep("guild"); return; }
+    setLocation("/dashboard");
+  }, [profile, setLocation]);
+
+  const updateProfileMutation = useMutation({
     mutationFn: async () => {
       if (!session?.user?.id) throw new Error("Not authenticated");
-      const { error } = await supabase.from("guild_requests").insert({
-        user_id: session.user.id,
-        guild_name: guildName.trim(),
-        element,
-        x_username: xUsername.trim().replace(/^@/, ""),
-      });
-      if (error) throw error;
+      return api.updateUsername(session.user.id, username.trim());
     },
-    onSuccess: () => setSubmitted(true),
+    onSuccess: () => { setStep("wallet"); },
   });
 
-  // Join guild (pledge)
+  const bindWalletMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.user?.id) throw new Error("Not authenticated");
+      const finalWallet = walletAddress.trim() || "0x" + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+      return api.bindWallet(session.user.id, finalWallet);
+    },
+    onSuccess: () => { setStep("guild"); },
+  });
+
   const joinGuildMutation = useMutation({
     mutationFn: async (guildId: string) => {
       if (!session?.user?.id) throw new Error("Not authenticated");
       return api.joinGuild(session.user.id, guildId);
     },
-    onSuccess: async () => {
-      await refreshProfile();
-      setLocation("/dashboard");
-    },
+    onSuccess: () => { setLocation("/dashboard"); },
   });
 
-  if (isInitializing || !session) {
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) return;
+    updateProfileMutation.mutate();
+  };
+
+  const handleWalletSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    bindWalletMutation.mutate();
+  };
+
+  const handleGuildSelect = (guildId: string) => {
+    setSelectedGuild(guildId);
+    joinGuildMutation.mutate(guildId);
+  };
+
+  if (!session) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -80,214 +91,96 @@ export default function Connect() {
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-background">
+      <header className="border-b border-border">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded overflow-hidden border border-border">
+              <img src={ASSETS.logo} alt="Earnity" className="w-full h-full object-cover" />
+            </div>
+            <span className="text-sm font-semibold tracking-tight">Earnity</span>
+          </Link>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Back</Link>
+        </div>
+      </header>
       <div className="flex-1 flex items-center justify-center p-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step + (submitted ? "-done" : "")}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ type: "spring", damping: 22 }}
-            className="w-full max-w-sm"
-          >
-
-            {/* ── CHOICE ── */}
-            {step === "choice" && (
-              <div>
-                <div className="mb-8">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
-                    Choose your path
-                  </div>
-                  <h1 className="text-3xl font-semibold tracking-tight">Allegiance</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    This defines who you are in Earnity. Choose carefully.
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  <button
-                    onClick={() => setStep("pledge")}
-                    className="group w-full border border-border rounded-xl p-5 text-left hover:border-foreground/30 hover:bg-secondary/30 transition-all"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <div className="font-semibold">Pledge Allegiance</div>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Join an existing guild. Fight alongside your brothers and sisters. Rise together.
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() => setStep("rebel")}
-                    className="group w-full border border-border rounded-xl p-5 text-left hover:border-foreground/30 hover:bg-secondary/30 transition-all"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
-                        <Swords className="w-4 h-4" />
-                      </div>
-                      <div className="font-semibold">Rebel</div>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Create your own guild. Lead from the front. Only 20 guilds will ever exist.
-                    </p>
-                  </button>
-                </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 20 }} className="w-full max-w-sm">
+          {step === "profile" && (
+            <div>
+              <div className="mb-8">
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 01</div>
+                <h1 className="text-3xl font-semibold tracking-tight">Your Name</h1>
+                <p className="mt-2 text-sm text-muted-foreground">What should the guilds call you?</p>
               </div>
-            )}
-
-            {/* ── REBEL ── */}
-            {step === "rebel" && !submitted && (
-              <div>
-                <button
-                  onClick={() => { setStep("choice"); setElement(null); setGuildName(""); }}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-6"
-                >
-                  <ArrowLeft className="w-3 h-3" /> Back
-                </button>
-                <div className="mb-6">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Guild Request</div>
-                  <h1 className="text-3xl font-semibold tracking-tight">Create a Guild</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Submit your request. We'll review and assign you as Guild Master.
-                  </p>
+              <form onSubmit={handleProfileSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="text-xs uppercase tracking-wider text-muted-foreground">Display Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input id="username" placeholder="Satoshi" value={username} onChange={(e) => setUsername(e.target.value)} className="pl-9 bg-card border-border h-11" required autoFocus />
+                  </div>
                 </div>
-
-                <form onSubmit={(e) => { e.preventDefault(); guildRequestMutation.mutate(); }} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Guild name</Label>
-                    <Input
-                      value={guildName}
-                      onChange={(e) => setGuildName(e.target.value)}
-                      placeholder="e.g. Emberborn"
-                      maxLength={32}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Element</Label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {ELEMENTS.map((el) => (
-                        <button
-                          key={el.id}
-                          type="button"
-                          onClick={() => setElement(el.id)}
-                          className={`border rounded-lg py-3 flex flex-col items-center gap-1 transition-all text-xs font-medium ${
-                            element === el.id
-                              ? `${el.border} ${el.bg} ${el.color}`
-                              : "border-border text-muted-foreground hover:bg-secondary/40"
-                          }`}
-                        >
-                          <span className="text-base">{el.emoji}</span>
-                          <span>{el.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">X (Twitter) username</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
-                      <Input
-                        value={xUsername}
-                        onChange={(e) => setXUsername(e.target.value.replace(/^@/, ""))}
-                        placeholder="yourhandle"
-                        className="pl-7"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {guildRequestMutation.isError && (
-                    <p className="text-sm text-destructive">
-                      {guildRequestMutation.error instanceof Error
-                        ? guildRequestMutation.error.message
-                        : "Failed to submit request"}
-                    </p>
-                  )}
-
-                  <Button
-                    type="submit"
-                    className="w-full h-11"
-                    disabled={guildRequestMutation.isPending || !guildName.trim() || !element || !xUsername.trim()}
-                  >
-                    {guildRequestMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit request"}
-                  </Button>
-                </form>
-              </div>
-            )}
-
-            {/* ── REBEL SUCCESS ── */}
-            {step === "rebel" && submitted && (
-              <div className="text-center space-y-5 py-4">
-                <CheckCircle className="w-12 h-12 text-green-400 mx-auto" />
-                <div>
-                  <h2 className="text-2xl font-semibold">Request sent</h2>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Your guild request is in. We'll set you up as Guild Master before the countdown ends.
-                  </p>
-                </div>
-                <Button className="w-full" onClick={() => setLocation("/leaderboard")}>
-                  View leaderboard
+                <Button type="submit" className="w-full h-11" disabled={updateProfileMutation.isPending || !username.trim()}>
+                  {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue"}
                 </Button>
-              </div>
-            )}
-
-            {/* ── PLEDGE ── */}
-            {step === "pledge" && (
-              <div>
-                <button
-                  onClick={() => setStep("choice")}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-6"
-                >
+              </form>
+            </div>
+          )}
+          {step === "wallet" && (
+            <div>
+              <div className="mb-8">
+                <button onClick={() => setStep("profile")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3">
                   <ArrowLeft className="w-3 h-3" /> Back
                 </button>
-                <div className="mb-6">
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Pledge</div>
-                  <h1 className="text-3xl font-semibold tracking-tight">Swear Allegiance</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">Choose your guild. This cannot be changed.</p>
-                </div>
-
-                {guildsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : guilds?.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    No guilds yet. Check back after the countdown.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {guilds?.map((guild) => (
-                      <button
-                        key={guild.id}
-                        onClick={() => joinGuildMutation.mutate(guild.id)}
-                        disabled={joinGuildMutation.isPending}
-                        className="w-full text-left rounded-xl border border-border bg-card hover:bg-secondary/40 p-4 transition-all"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">{guild.name}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {guild.member_count} members · {guild.total_score.toLocaleString()} pts
-                            </div>
-                          </div>
-                          {joinGuildMutation.isPending && (
-                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 02</div>
+                <h1 className="text-3xl font-semibold tracking-tight">Bind Wallet</h1>
+                <p className="mt-2 text-sm text-muted-foreground">Link your wallet address, or leave blank to generate one.</p>
               </div>
-            )}
-
-          </motion.div>
-        </AnimatePresence>
+              <form onSubmit={handleWalletSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="wallet" className="text-xs uppercase tracking-wider text-muted-foreground">Wallet Address</Label>
+                  <div className="relative">
+                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input id="wallet" placeholder="0x..." value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} className="pl-9 font-mono text-sm bg-card border-border h-11" />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full h-11" disabled={bindWalletMutation.isPending}>
+                  {bindWalletMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue"}
+                </Button>
+                {bindWalletMutation.isError && (
+                  <p className="text-sm text-destructive">{bindWalletMutation.error instanceof Error ? bindWalletMutation.error.message : "Failed to bind wallet"}</p>
+                )}
+              </form>
+            </div>
+          )}
+          {step === "guild" && (
+            <div>
+              <div className="mb-8">
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Step 03</div>
+                <h1 className="text-3xl font-semibold tracking-tight">Swear Allegiance</h1>
+                <p className="mt-2 text-sm text-muted-foreground">Choose a guild to pledge your loyalty.</p>
+              </div>
+              {guildsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {guilds?.map((guild) => (
+                    <button key={guild.id} onClick={() => handleGuildSelect(guild.id)} disabled={joinGuildMutation.isPending && selectedGuild === guild.id} className={"w-full text-left rounded-xl border p-4 transition-all " + (selectedGuild === guild.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-secondary/40")}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{guild.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{guild.member_count} members - {guild.total_score.toLocaleString()} pts</div>
+                        </div>
+                        {selectedGuild === guild.id && joinGuildMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
