@@ -7,33 +7,46 @@ export default function AuthCallback() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    let cancelled = false;
+
     const handleAuth = async () => {
-      try {
-        // Extract the OAuth code from the URL query params
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
+      // 1. Extract the OAuth code from URL
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
 
-        if (code) {
-          // Explicitly exchange the authorization code for a session.
-          // This is required for the PKCE flow to complete.
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            console.error("Code exchange failed:", error.message);
-          }
+      if (code) {
+        // 2. Explicitly exchange the code for a session (PKCE flow)
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error("Code exchange failed:", error.message);
         }
+      }
 
-        // Brief pause to let the session propagate through listeners
-        await new Promise((r) => setTimeout(r, 600));
-      } catch (err) {
-        console.error("Auth callback error:", err);
-      } finally {
-        // Always redirect to landing — it handles all routing logic
-        // based on whether the user has entered an access code / joined a guild.
+      // 3. Poll for session — Supabase needs a moment to persist it
+      // Try every 200ms for up to 4 seconds
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return;
+
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          // Session confirmed — safe to redirect
+          setLocation("/");
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      // 4. Fallback: redirect anyway so landing can retry
+      if (!cancelled) {
         setLocation("/");
       }
     };
 
     handleAuth();
+
+    return () => {
+      cancelled = true;
+    };
   }, [setLocation]);
 
   return (
