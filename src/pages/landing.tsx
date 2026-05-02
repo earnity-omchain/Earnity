@@ -23,7 +23,7 @@ const ASSETS = {
   wind:       import.meta.env.BASE_URL + "Wind.png",
 };
 
-type Phase = "loading" | "gate" | "code" | "validating" | "choice" | "rabel";
+type Phase = "loading" | "gate" | "code" | "validating" | "choice" | "rabel" | "pledge";
 
 const ELEMENTS = [
   { id: "fire",      name: "Fire",      img: ASSETS.fire,      text: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10", ring: "ring-orange-500/30",  glow: "rgba(249,115,22,0.4)"  },
@@ -172,7 +172,7 @@ export default function Landing() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("guild_id, invite_code_used, username, wallet_address")
+        .select("guild_id, invite_code_used, username, wallet_address, element")
         .eq("id", session!.user.id)
         .single();
       return data;
@@ -188,11 +188,13 @@ export default function Landing() {
     if (!session) { setPhase("gate"); return; }
     if (profileLoading) { setPhase("loading"); return; }
     if (!profile?.invite_code_used) { setPhase("code"); return; }
+    // If element already chosen → go to guild waiting page directly
+    if ((profile as any)?.element) { setLocation("/guild-waiting"); return; }
     if (!profile?.guild_id) { setPhase("choice"); return; }
     if (!profile.username || !profile.wallet_address) {
       setLocation("/connect");
     } else {
-      setLocation("/dashboard");
+      setLocation("/guild-waiting");
     }
   }, [session, profile, sessionReady, profileLoading, setLocation]);
 
@@ -220,6 +222,21 @@ export default function Landing() {
     api.submitGuildRequest({ name, element, xUsername }),
     onSuccess: () => {
       setTimeout(() => setLocation("/connect"), 800);
+    },
+  });
+
+  const savePledgeElementMutation = useMutation({
+    mutationFn: async (element: string) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ element })
+        .eq("id", userData.user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setLocation("/guild-waiting");
     },
   });
 
@@ -336,7 +353,7 @@ export default function Landing() {
                   <motion.button
                     initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, type: "spring" }}
                     whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}
-                    onClick={() => setLocation("/connect")}
+                    onClick={() => setPhase("pledge")}
                     className="group relative text-left rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md p-8 hover:bg-black/60 hover:border-indigo-500/40 transition-colors"
                   >
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow">
@@ -450,6 +467,69 @@ export default function Landing() {
               </div>
             </motion.div>
           )}
+
+          {/* ── PLEDGE: Choose element → saves to profile → guild-waiting ── */}
+          {phase === "pledge" && (
+            <motion.div key="pledge" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6">
+              <div className="w-full max-w-xl">
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
+                  <button onClick={() => { setPhase("choice"); setSelectedElement(null); }} className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors mb-4">
+                    <ArrowLeft className="w-3 h-3" /> Back
+                  </button>
+                  <h2 className="text-2xl font-bold tracking-tight text-white">Choose your element</h2>
+                  <p className="mt-1 text-sm text-white/50">This binds to your soul — it cannot be changed</p>
+                </motion.div>
+
+                <div className="relative w-full max-w-[380px] aspect-square mx-auto mb-8">
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 60, repeat: Infinity, ease: "linear" }} className="absolute inset-4 rounded-full border border-dashed border-white/10" />
+                  <motion.div animate={{ rotate: -360 }} transition={{ duration: 45, repeat: Infinity, ease: "linear" }} className="absolute inset-10 rounded-full border border-white/5" />
+                  <motion.div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10" animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 3, repeat: Infinity }}>
+                    <div className="w-28 h-28 md:w-36 md:h-36">
+                      <img src={`${import.meta.env.BASE_URL}Seal2.png`} alt="Seal" className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.15)]" />
+                    </div>
+                  </motion.div>
+                  {ELEMENTS.map((el, i) => {
+                    const angle = (i * (360 / ELEMENTS.length) - 90) * (Math.PI / 180);
+                    const radius = 125;
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    const isSelected = selectedElement === el.id;
+                    return (
+                      <motion.button
+                        key={el.id}
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: selectedElement && !isSelected ? 0.35 : 1, scale: isSelected ? 1.15 : 1, x, y }}
+                        transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.3 + i * 0.08 }}
+                        onClick={() => setSelectedElement(el.id)}
+                        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[72px] h-[72px] rounded-full border-2 ${isSelected ? el.border : "border-white/20"} ${isSelected ? el.bg : "bg-black/50"} backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-shadow ${isSelected ? `shadow-lg ${el.ring} ring-2` : "hover:border-white/40"}`}
+                      >
+                        <img src={el.img} alt={el.name} className="w-7 h-7 object-contain pointer-events-none" />
+                        <span className={`text-[10px] font-semibold ${el.text}`}>{el.name}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence>
+                  {selectedElement && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-sm mx-auto">
+                      <Button
+                        onClick={() => savePledgeElementMutation.mutate(selectedElement!)}
+                        disabled={savePledgeElementMutation.isPending}
+                        className="w-full h-12 font-semibold"
+                      >
+                        {savePledgeElementMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : `Pledge as ${ELEMENTS.find(e => e.id === selectedElement)?.name}`}
+                      </Button>
+                      {savePledgeElementMutation.isError && (
+                        <p className="text-sm text-red-400 text-center mt-2">Failed to save element. Try again.</p>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+
 
         </AnimatePresence>
       </div>
