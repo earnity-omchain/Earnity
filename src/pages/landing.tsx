@@ -9,10 +9,10 @@ import {
   Loader2, Shield, Swords, CheckCircle2, AlertCircle,
   Sparkles, ArrowLeft, LogIn, Copy, Check,
   Wallet, Star, Zap, Clock, Trophy, ShoppingBag, LayoutDashboard,
-  Users, Gift, ExternalLink,
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
+import { ProfilePanel } from "@/components/profile-panel";
 
 const ASSETS = {
   background: import.meta.env.BASE_URL + "background-1.png",
@@ -38,8 +38,6 @@ const ELEMENTS = [
   { id: "wind",      name: "Wind",      img: ASSETS.wind,      text: "text-sky-300",    border: "border-sky-300/40",    bg: "bg-sky-300/10",    ring: "ring-sky-300/30",     glow: "rgba(125,211,252,0.4)" },
 ];
 
-
-// ── Universal deadline ───────────────────────────────────────────────────────
 const DEADLINE = new Date("2026-05-10T23:59:59Z");
 
 function useCountdown(target: Date) {
@@ -69,7 +67,6 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-// ── Orbiting Ring Component ───────────────────────────────────────────────────
 function OrbitingElements({
   selectedElement,
   onSelect,
@@ -83,7 +80,7 @@ function OrbitingElements({
   );
 
   useAnimationFrame((_, delta) => {
-    angleRef.current += (delta / 1000) * 0.25; // 0.25 rad/s — slow orbit
+    angleRef.current += (delta / 1000) * 0.25;
     setAngles(ELEMENTS.map((_, i) => angleRef.current + (i * 60 * Math.PI) / 180));
   });
 
@@ -91,12 +88,9 @@ function OrbitingElements({
 
   return (
     <div className="relative w-[320px] h-[320px] mx-auto">
-      {/* Outer orbit ring */}
       <div className="absolute inset-0 rounded-full border border-dashed border-white/10" />
-      {/* Inner glow ring */}
       <div className="absolute inset-8 rounded-full border border-white/5" />
 
-      {/* Seal center */}
       <motion.div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-28 h-28"
         animate={{ scale: [1, 1.03, 1] }}
@@ -119,7 +113,6 @@ function OrbitingElements({
         )}
       </motion.div>
 
-      {/* Orbiting elements */}
       {ELEMENTS.map((el, i) => {
         const angle = angles[i];
         const x = Math.cos(angle) * RADIUS;
@@ -131,30 +124,17 @@ function OrbitingElements({
           <motion.button
             key={el.id}
             onClick={() => onSelect(el.id)}
-            animate={{
-              x,
-              y,
-              scale: isSelected ? 1.2 : 1,
-              opacity: isDimmed ? 0.35 : 1,
-            }}
+            animate={{ x, y, scale: isSelected ? 1.2 : 1, opacity: isDimmed ? 0.35 : 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[68px] h-[68px] rounded-full border-2 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-shadow cursor-pointer ${
               isSelected
                 ? `${el.border} ${el.bg} shadow-lg ring-2 ${el.ring}`
                 : "border-white/20 bg-black/50 hover:border-white/40"
             }`}
-            style={{
-              boxShadow: isSelected
-                ? `0 0 20px ${el.glow}`
-                : undefined,
-            }}
+            style={{ boxShadow: isSelected ? `0 0 20px ${el.glow}` : undefined }}
           >
-            <img
-              src={el.img}
-              alt={el.name}
-              className="w-7 h-7 object-contain pointer-events-none"
-              style={{ filter: isSelected ? "drop-shadow(0 0 6px currentColor)" : undefined }}
-            />
+            <img src={el.img} alt={el.name} className="w-7 h-7 object-contain pointer-events-none"
+              style={{ filter: isSelected ? "drop-shadow(0 0 6px currentColor)" : undefined }} />
             <span className={`text-[9px] font-bold tracking-wide ${isSelected ? el.text : "text-white/60"}`}>
               {el.name.toUpperCase()}
             </span>
@@ -165,245 +145,6 @@ function OrbitingElements({
   );
 }
 
-// ── Full Profile Panel (slide-over) ──────────────────────────────────────────
-function ProfilePanel({
-  open,
-  onClose,
-  session,
-  profile,
-  fullProfile,
-  signOut,
-}: {
-  open: boolean;
-  onClose: () => void;
-  session: Session | null;
-  profile: any;
-  fullProfile: any;
-  signOut: () => void;
-}) {
-  const { data: referralCodes } = useQuery({
-    queryKey: ["referral-codes", session?.user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("invite_codes")
-        .select("code, is_active, used_at, used_by")
-        .eq("created_by", session!.user.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      return data ?? [];
-    },
-    enabled: !!session?.user?.id && open,
-  });
-
-  const guild = (fullProfile as any)?.guilds;
-  const element = fullProfile?.element || guild?.element;
-  const elStyle = element ? ELEMENTS.find(e => e.id === element) : null;
-  const discordAvatar = fullProfile?.discord_avatar;
-  const wallet = fullProfile?.wallet_address;
-  const score = fullProfile?.contribution_score ?? 0;
-  const activeCodes = referralCodes?.filter((c: any) => c.is_active && !c.used_by) ?? [];
-  const usedCodes = referralCodes?.filter((c: any) => c.used_by) ?? [];
-  const shortWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            key="profile-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-          />
-
-          {/* Panel */}
-          <motion.div
-            key="profile-panel"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 w-full max-w-md bg-black/95 backdrop-blur-2xl border-l border-white/10 z-50 overflow-y-auto"
-          >
-            {/* Header */}
-            <div className="sticky top-0 bg-black/50 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Profile</h2>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-8">
-              {/* ── Profile Hero ── */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  {discordAvatar ? (
-                    <img
-                      src={discordAvatar}
-                      alt={profile.username}
-                      className={`w-20 h-20 rounded-2xl border-2 object-cover ${elStyle?.border || "border-white/20"}`}
-                      style={{ boxShadow: elStyle ? `0 0 20px ${elStyle.glow}` : undefined }}
-                    />
-                  ) : (
-                    <div className={`w-20 h-20 rounded-2xl border-2 ${elStyle?.border || "border-white/20"} bg-white/10 flex items-center justify-center`}>
-                      <span className="text-2xl font-bold text-white/60">
-                        {profile.username?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-black" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-xl font-bold text-white truncate">{profile.username}</h3>
-                  {guild ? (
-                    <div className="text-sm text-white/60 mt-0.5">{guild.name}</div>
-                  ) : (
-                    <div className="text-sm text-white/40 mt-0.5">No guild</div>
-                  )}
-                  {elStyle && (
-                    <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs ${elStyle.text} px-2 py-1 rounded-full border ${elStyle.border} ${elStyle.bg}`}>
-                      <img src={elStyle.img} className="w-3.5 h-3.5 object-contain" alt="" />
-                      {elStyle.name} element
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Stats ── */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/10">
-                  <div className="text-xl font-bold text-white">{score.toLocaleString()}</div>
-                  <div className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Points</div>
-                </div>
-                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/10">
-                  <div className="text-xl font-bold text-white">{usedCodes.length}</div>
-                  <div className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Referrals</div>
-                </div>
-                <div className="text-center p-3 rounded-xl bg-white/5 border border-white/10">
-                  <div className="text-xl font-bold text-white">{usedCodes.length * 50}</div>
-                  <div className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Ref. Pts</div>
-                </div>
-              </div>
-
-              {/* ── Wallet ── */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Wallet className="w-4 h-4 text-white/40" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Bound Wallet</h3>
-                </div>
-                {wallet ? (
-                  <div className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/10">
-                    <span className="font-mono text-sm text-white/80">{shortWallet}</span>
-                    <div className="flex items-center gap-1">
-                      <CopyBtn text={wallet} />
-                      <a
-                        href={`https://etherscan.io/address/${wallet}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-md hover:bg-white/10 transition-colors text-white/40 hover:text-white"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-white/40 text-center py-3 bg-white/5 rounded-xl border border-white/10">
-                    No wallet bound yet.
-                  </div>
-                )}
-              </div>
-
-              {/* ── Inventory ── */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Gift className="w-4 h-4 text-white/40" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Inventory</h3>
-                </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {[
-                    { icon: Shield, label: "Shields", count: 0, color: "text-blue-400" },
-                    { icon: Swords, label: "Rug Cards", count: 0, color: "text-red-400" },
-                    { icon: Zap, label: "Drainers", count: 0, color: "text-orange-400" },
-                    { icon: Star, label: "Shards", count: 0, color: "text-yellow-400" },
-                  ].map(({ icon: Icon, label, count, color }) => (
-                    <div key={label} className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 p-3">
-                      <Icon className={`w-5 h-5 ${color}`} />
-                      <span className="text-lg font-bold text-white">{count}</span>
-                      <span className="text-[10px] text-white/40 text-center leading-tight">{label}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-white/25 text-center mt-3">
-                  Mystery boxes unlock in Phase 2 — coming soon
-                </p>
-              </div>
-
-              {/* ── Referral Codes ── */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="w-4 h-4 text-white/40" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Referral Codes</h3>
-                  <span className="ml-auto text-xs text-white/30">+50 pts per referral</span>
-                </div>
-
-                {activeCodes.length > 0 ? (
-                  <div className="space-y-2">
-                    {activeCodes.map((c: any) => (
-                      <div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/10">
-                        <span className="font-mono text-sm tracking-widest text-white/80">{c.code}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-green-400">Active</span>
-                          <CopyBtn text={c.code} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/40 text-center py-3 bg-white/5 rounded-xl border border-white/10">
-                    Your referral codes are being generated…
-                  </p>
-                )}
-
-                {usedCodes.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <p className="text-xs text-white/30 mb-2">{usedCodes.length} code{usedCodes.length > 1 ? "s" : ""} used</p>
-                    <div className="space-y-1.5">
-                      {usedCodes.map((c: any) => (
-                        <div key={c.code} className="flex items-center justify-between px-4 py-2 rounded-lg bg-white/5 border border-white/5">
-                          <span className="font-mono text-xs text-white/40 tracking-widest">{c.code}</span>
-                          <span className="text-xs text-white/30">Used</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Sign Out ── */}
-              <button
-                onClick={() => { signOut(); onClose(); }}
-                className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
-              >
-                Sign Out
-              </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
-
-// ── Main component ────────────────────────────────────────────────────────────
 export default function Landing() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [code, setCode] = useState("");
@@ -415,13 +156,11 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // Session must be declared before any query that uses it
   const [session, setSession] = useState<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
 
   const cd = useCountdown(DEADLINE);
 
-  // Full profile data for waiting phase (avatar, wallet, element, guild)
   const { data: fullProfile } = useQuery({
     queryKey: ["landing-full-profile", session?.user?.id],
     queryFn: async () => {
@@ -485,7 +224,6 @@ export default function Landing() {
     if (!session) { setPhase("gate"); return; }
     if (profileLoading) { setPhase("loading"); return; }
     if (!profile?.invite_code_used) { setPhase("code"); return; }
-    // If element already chosen → show waiting phase
     if ((profile as any)?.element) { setPhase("waiting"); return; }
     if (!profile?.guild_id) { setPhase("choice"); return; }
     if (!profile.username || !profile.wallet_address) {
@@ -515,8 +253,8 @@ export default function Landing() {
   });
 
   const createGuildMutation = useMutation({
-  mutationFn: ({ name, element, xUsername }: { name: string; element: string; xUsername: string }) =>
-    api.submitGuildRequest({ name, element, xUsername }),
+    mutationFn: ({ name, element, xUsername }: { name: string; element: string; xUsername: string }) =>
+      api.submitGuildRequest({ name, element, xUsername }),
     onSuccess: () => {
       setPhase("waiting");
     },
@@ -698,10 +436,8 @@ export default function Landing() {
                   <p className="mt-1 text-sm text-white/50">The force that binds your guild</p>
                 </motion.div>
 
-                {/* Orbiting elements */}
                 <OrbitingElements selectedElement={selectedElement} onSelect={setSelectedElement} />
 
-                {/* Guild form — appears after element selected */}
                 <AnimatePresence>
                   {selectedElement && (
                     <motion.div
@@ -765,7 +501,7 @@ export default function Landing() {
             </motion.div>
           )}
 
-          {/* ── PLEDGE: Choose element → saves to profile → waiting phase ── */}
+          {/* ── PLEDGE ── */}
           {phase === "pledge" && (
             <motion.div key="pledge" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6">
               <div className="w-full max-w-xl">
@@ -827,14 +563,12 @@ export default function Landing() {
             </motion.div>
           )}
 
-
-          {/* ── WAITING PHASE ── Full screen, own background, no sidebar ── */}
+          {/* ── WAITING PHASE ── */}
           {phase === "waiting" && (
             <motion.div key="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex flex-col text-white"
               style={{ backgroundImage: `url(${ASSETS.background2})`, backgroundSize: "cover", backgroundPosition: "center" }}
             >
-              {/* Dark overlay */}
               <div className="absolute inset-0 bg-black/70" />
 
               {/* Top nav */}
@@ -849,7 +583,7 @@ export default function Landing() {
                 <div className="flex items-center gap-1 sm:gap-2">
                   {[
                     { label: "Rank", soon: false, onClick: () => setLocation("/leaderboard") },
-                    { label: "Drops", soon: false, onClick: () => {} },
+                    { label: "Drops", soon: false, onClick: () => setLocation("/drops") },
                     { label: "Merchant", soon: false, onClick: () => setLocation("/merchant") },
                     { label: "Stake", soon: true, onClick: () => {} },
                   ].map(({ label, soon, onClick }) => (
@@ -870,7 +604,11 @@ export default function Landing() {
                       {(fullProfile as any)?.discord_avatar ? (
                         <img
                           src={(fullProfile as any).discord_avatar}
-                          className={`w-7 h-7 rounded-lg border ${(fullProfile as any)?.element ? ELEMENTS.find(e => e.id === (fullProfile as any).element)?.border || "border-white/20" : "border-white/20"} object-cover`}
+                          className={`w-7 h-7 rounded-lg border ${
+                            (fullProfile as any)?.element
+                              ? ELEMENTS.find(e => e.id === (fullProfile as any).element)?.border || "border-white/20"
+                              : "border-white/20"
+                          } object-cover`}
                         />
                       ) : (
                         <div className="w-7 h-7 rounded-lg border border-white/20 bg-white/10 flex items-center justify-center text-xs font-bold text-white">
@@ -885,7 +623,6 @@ export default function Landing() {
                       onClose={() => setProfileOpen(false)}
                       session={session}
                       profile={profile}
-                      fullProfile={fullProfile}
                       signOut={handleSignOut}
                     />
                   </>
@@ -912,15 +649,20 @@ export default function Landing() {
                       </div>
 
                       {/* Heading */}
-                      {el
-                        ? <p className={`text-xs uppercase tracking-[0.2em] ${el.text} mb-3`}>{el.name} element bound</p>
-                        : <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">awaiting the protocol</p>
-                      }
-                      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-                        {el ? "Your path is chosen" : "The protocol awaits"}
-                      </h1>
+                      {el ? (
+                        <>
+                          <p className={`text-xs uppercase tracking-[0.2em] ${el.text} mb-3`}>{el.name} element bound</p>
+                          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">Your path is chosen</h1>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Ready Combatant</p>
+                          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">Welcome to the arena</h1>
+                        </>
+                      )}
+
                       <p className="mt-4 text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
-                        Guild submissions are open. Once the timer expires, the 20 guilds will be selected and the protocol begins.
+                        The battle for supremacy begins soon. Gather your allies and prepare.
                       </p>
 
                       {/* Countdown */}
@@ -963,7 +705,6 @@ export default function Landing() {
               </div>
             </motion.div>
           )}
-
 
         </AnimatePresence>
       </div>
