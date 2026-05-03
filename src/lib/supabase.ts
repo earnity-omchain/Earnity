@@ -313,13 +313,27 @@ export const api = {
   getTopContributors: async (limit: number): Promise<TopContributor[]> => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, contribution_score, guild_id, guilds(id, name)")
+      .select("id, username, contribution_score, guild_id, element, discord_avatar, discord_id, guilds(id, name)")
       .order("contribution_score", { ascending: false })
       .limit(limit);
     if (error) throw error;
+
+    const ids = (data ?? []).map(p => p.id);
+    const { data: refData } = await supabase
+      .from("invite_codes")
+      .select("created_by")
+      .in("created_by", ids)
+      .not("used_by", "is", null);
+    const refCounts: Record<string, number> = {};
+    (refData ?? []).forEach((r: any) => { refCounts[r.created_by] = (refCounts[r.created_by] || 0) + 1; });
+
     return (data ?? []).map((p, i) => ({
       rank: i + 1,
-      user: { id: p.id, username: p.username, contribution_score: p.contribution_score },
+      user: {
+        id: p.id, username: p.username, contribution_score: p.contribution_score,
+        discord_avatar: p.discord_avatar, discord_id: p.discord_id,
+        element: p.element, referral_count: refCounts[p.id] || 0, shards: 0,
+      },
       guild: p.guilds ? { id: (p.guilds as any).id, name: (p.guilds as any).name } : null,
     }));
   },
