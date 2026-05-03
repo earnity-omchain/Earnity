@@ -7,7 +7,7 @@ const ASSETS = {
   logo: import.meta.env.BASE_URL + "logo.jpg",
 };
 
-export default function Drops() {
+export default function Forge() {
   const [, setLocation] = useLocation();
 
   return (
@@ -34,10 +34,10 @@ export default function Drops() {
           <div className="w-20 h-20 mx-auto mb-8 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
             <Clock className="w-10 h-10 text-white/20" />
           </div>
-          <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Daily Drops</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">The Forge</p>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Coming Soon</h1>
           <p className="mt-4 text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
-            Daily rewards and exclusive loot drops are being prepared for the chosen combatants.
+            Forge your rewards and claim exclusive loot as a chosen combatant.
           </p>
         </motion.div>
       </div>
