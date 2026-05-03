@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import {
   Loader2, Shield, Swords, CheckCircle2, AlertCircle,
   Sparkles, ArrowLeft, LogIn, Copy, Check, ChevronDown,
-  Wallet, Star, Zap, Clock, Trophy, ShoppingBag, LayoutDashboard,
+  Star, Zap, Clock, Users, ExternalLink,
 } from "lucide-react";
-import { Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
 
 const ASSETS = {
@@ -164,14 +164,14 @@ function OrbitingElements({
   );
 }
 
-
-// ── Profile dropdown for waiting phase ───────────────────────────────────────
-function ProfileMenu({ profile, full, signOut }: any) {
-  const [open, setOpen] = useState(false);
+// ── Full inline profile panel for waiting phase ───────────────────────────────
+function ProfilePanel({ profile, full, signOut }: any) {
+  const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  // Must render above seal, text, background layers
+
+  // Close when clicking outside
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
@@ -179,55 +179,125 @@ function ProfileMenu({ profile, full, signOut }: any) {
   const el = full?.element ? ELEMENTS.find(e => e.id === full.element) : null;
   const wallet = full?.wallet_address;
   const short = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
+  const score = full?.contribution_score ?? 0;
 
   return (
     <div ref={ref} className="relative z-[100]">
-      <button onClick={() => setOpen(v => !v)}
+      {/* Avatar trigger button */}
+      <button onClick={() => setIsOpen(v => !v)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
         {full?.discord_avatar
           ? <img src={full.discord_avatar} className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} object-cover`} />
-          : <div className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold`}>{profile?.username?.charAt(0).toUpperCase()}</div>
+          : <div className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>{profile?.username?.charAt(0).toUpperCase()}</div>
         }
         <span className="text-sm text-white/80 font-medium hidden sm:block">{profile?.username}</span>
-        <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
+
+      {/* Full inline profile panel — slides open */}
       <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[200] overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex items-center gap-3">
-              {full?.discord_avatar
-                ? <img src={full.discord_avatar} className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} object-cover`} />
-                : <div className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold`}>{profile?.username?.charAt(0).toUpperCase()}</div>
-              }
-              <div>
-                <div className="font-semibold text-white">{profile?.username}</div>
-                {el && <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}><img src={el.img} className="w-3.5 h-3.5 object-contain" />{el.name} element</div>}
-                <div className="text-xs text-white/40 mt-0.5">{full?.contribution_score?.toLocaleString() ?? 0} pts</div>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96, height: 0 }}
+            animate={{ opacity: 1, y: 0, scale: 1, height: "auto" }}
+            exit={{ opacity: 0, y: -8, scale: 0.96, height: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[200] overflow-hidden"
+          >
+            {/* Profile header */}
+            <div className="p-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                {full?.discord_avatar
+                  ? <img src={full.discord_avatar} className={`w-16 h-16 rounded-xl border-2 ${el?.border || "border-white/20"} object-cover shadow-lg ${el?.glow || ""}`} />
+                  : <div className={`w-16 h-16 rounded-xl border-2 ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-2xl font-bold text-white`}>{profile?.username?.charAt(0).toUpperCase()}</div>
+                }
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white text-lg truncate">{profile?.username}</div>
+                  {el && (
+                    <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}>
+                      <img src={el.img} className="w-3.5 h-3.5 object-contain" />
+                      {el.name} element
+                    </div>
+                  )}
+                  <div className="text-xs text-white/40 mt-0.5">{score.toLocaleString()} pts</div>
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="flex items-center gap-4 mt-4">
+                <div className="flex-1 text-center rounded-xl border border-white/10 bg-white/5 py-2">
+                  <div className="text-base font-bold text-white">{score.toLocaleString()}</div>
+                  <div className="text-[9px] text-white/40 uppercase tracking-wide">Points</div>
+                </div>
+                <div className="flex-1 text-center rounded-xl border border-white/10 bg-white/5 py-2">
+                  <div className="text-base font-bold text-white">0</div>
+                  <div className="text-[9px] text-white/40 uppercase tracking-wide">Referrals</div>
+                </div>
+                <div className="flex-1 text-center rounded-xl border border-white/10 bg-white/5 py-2">
+                  <div className="text-base font-bold text-white">0</div>
+                  <div className="text-[9px] text-white/40 uppercase tracking-wide">Shards</div>
+                </div>
               </div>
             </div>
+
+            {/* Wallet */}
             {short && (
               <div className="px-4 py-3 border-b border-white/10">
                 <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
                 <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
                   <span className="font-mono text-xs text-white/60">{short}</span>
-                  <CopyBtn text={wallet} />
+                  <div className="flex items-center gap-1">
+                    <CopyBtn text={wallet} />
+                    <a href={`https://etherscan.io/address/${wallet}`} target="_blank" rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Inventory */}
             <div className="px-4 py-3 border-b border-white/10">
               <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
               <div className="grid grid-cols-4 gap-2">
-                {[{icon: Shield, label:"Shields", color:"text-blue-400"},{icon:Swords,label:"Rugs",color:"text-red-400"},{icon:Zap,label:"Drain",color:"text-orange-400"},{icon:Star,label:"Shards",color:"text-yellow-400"}].map(({icon:Icon,label,color})=>(
+                {[
+                  { icon: Shield, label: "Shields", color: "text-blue-400" },
+                  { icon: Swords, label: "Rugs", color: "text-red-400" },
+                  { icon: Zap, label: "Drain", color: "text-orange-400" },
+                  { icon: Star, label: "Shards", color: "text-yellow-400" },
+                ].map(({ icon: Icon, label, color }) => (
                   <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
-                    <Icon className={`w-4 h-4 ${color}`}/><span className="text-sm font-bold text-white">0</span><span className="text-[9px] text-white/30">{label}</span>
+                    <Icon className={`w-4 h-4 ${color}`} />
+                    <span className="text-sm font-bold text-white">0</span>
+                    <span className="text-[9px] text-white/30">{label}</span>
                   </div>
                 ))}
               </div>
               <p className="text-[10px] text-white/25 text-center mt-2">Mystery boxes unlock in Phase 2</p>
             </div>
+
+            {/* Referral codes placeholder */}
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-white/40" />
+                  <span className="text-[10px] uppercase tracking-wider text-white/40">Referral Codes</span>
+                </div>
+                <span className="text-[9px] text-white/30">+50 pts per referral</span>
+              </div>
+              <div className="text-center py-2">
+                <p className="text-xs text-white/40">No active codes</p>
+                <p className="text-[10px] text-white/25 mt-1">Codes are created after redeeming your invite</p>
+              </div>
+            </div>
+
+            {/* Sign out */}
             <div className="p-2">
-              <button onClick={() => { signOut(); setOpen(false); }} className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">Sign Out</button>
+              <button onClick={() => { signOut(); setIsOpen(false); }}
+                className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">
+                Sign Out
+              </button>
             </div>
           </motion.div>
         )}
@@ -694,7 +764,7 @@ export default function Landing() {
                 </div>
 
                 {session && profile && (
-                  <ProfileMenu
+                  <ProfilePanel
                     profile={profile}
                     full={fullProfile}
                     signOut={handleSignOut}
@@ -743,7 +813,7 @@ export default function Landing() {
                         </div>
                         {!cd.expired ? (
                           <div className="flex items-center justify-center gap-3">
-                            {[{v:cd.days,l:"Days"},{v:cd.hours,l:"Hours"},{v:cd.minutes,l:"Min"},{v:cd.seconds,l:"Sec"}].map(({v,l},i)=>(
+                            {[{v:cd.days,l:"Days"},{v:cd.hours,l:"Hours"},{v:cd.minutes,l:"Min"},{v:cd.seconds,l:"Sec"}].map(({v,l},i)=> (
                               <div key={l} className="flex items-center gap-3">
                                 <div className="flex flex-col items-center">
                                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md flex items-center justify-center">
