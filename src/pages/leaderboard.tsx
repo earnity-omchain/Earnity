@@ -2,12 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api, queryKeys, supabase } from "@/lib/supabase";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
-import { useRef, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowLeft, ChevronDown, Copy, Check,
-  Shield, Swords, Zap, Star, Trophy, Crown,
-} from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Star, Trophy, Crown } from "lucide-react";
+import { ProfilePanel } from "@/components/profile-panel";
 
 const ASSETS = {
   background: import.meta.env.BASE_URL + "background-2.png",
@@ -30,88 +28,10 @@ const ELEMENT_META: Record<string, { text: string; border: string; bg: string; i
   wind:      { text: "text-sky-300",    border: "border-sky-300/50",    bg: "bg-sky-300/15",    img: ASSETS.wind     },
 };
 
-function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white">
-      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-    </button>
-  );
-}
-
-function ProfileMenu({ profile, full, signOut }: any) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  const el = full?.element ? ELEMENT_META[full.element] : null;
-  const wallet = full?.wallet_address;
-  const short = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
-
-  return (
-    <div ref={ref} className="relative z-50">
-      <button onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
-        {full?.discord_avatar
-          ? <img src={full.discord_avatar} className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} object-cover`} />
-          : <div className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>{profile?.username?.charAt(0).toUpperCase()}</div>
-        }
-        <span className="text-sm text-white/80 font-medium hidden sm:block">{profile?.username}</span>
-        <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex items-center gap-3">
-              {full?.discord_avatar
-                ? <img src={full.discord_avatar} className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} object-cover`} />
-                : <div className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>{profile?.username?.charAt(0).toUpperCase()}</div>
-              }
-              <div>
-                <div className="font-semibold text-white">{profile?.username}</div>
-                {el && <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}><img src={el.img} className="w-3.5 h-3.5 object-contain" />{full.element} element</div>}
-                <div className="text-xs text-white/40 mt-0.5">{full?.contribution_score?.toLocaleString() ?? 0} pts</div>
-              </div>
-            </div>
-            {short && (
-              <div className="px-4 py-3 border-b border-white/10">
-                <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
-                <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
-                  <span className="font-mono text-xs text-white/60">{short}</span>
-                  <CopyBtn text={wallet} />
-                </div>
-              </div>
-            )}
-            <div className="px-4 py-3 border-b border-white/10">
-              <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
-              <div className="grid grid-cols-4 gap-2">
-                {[{icon:Shield,label:"Shields",color:"text-blue-400"},{icon:Swords,label:"Rugs",color:"text-red-400"},{icon:Zap,label:"Drain",color:"text-orange-400"},{icon:Star,label:"Shards",color:"text-yellow-400"}].map(({icon:Icon,label,color})=>(
-                  <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
-                    <Icon className={`w-4 h-4 ${color}`}/><span className="text-sm font-bold text-white">0</span><span className="text-[9px] text-white/30">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="p-2">
-              <button onClick={() => { signOut(); setOpen(false); }} className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">Sign Out</button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export default function Leaderboard() {
   const [, setLocation] = useLocation();
   const { session, profile, signOut } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: queryKeys.overviewStats(),
@@ -166,7 +86,38 @@ export default function Leaderboard() {
           <span className="text-sm font-bold tracking-tight">EARNITY</span>
         </div>
 
-        {profile && <ProfileMenu profile={profile} full={fullProfile} signOut={signOut} />}
+        {profile && (
+          <>
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors"
+            >
+              {fullProfile?.discord_avatar ? (
+                <img
+                  src={fullProfile.discord_avatar}
+                  className={`w-7 h-7 rounded-lg border ${
+                    fullProfile?.element
+                      ? ELEMENT_META[fullProfile.element]?.border || "border-white/20"
+                      : "border-white/20"
+                  } object-cover`}
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-lg border border-white/20 bg-white/10 flex items-center justify-center text-xs font-bold text-white">
+                  {profile?.username?.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="text-sm text-white/80 font-medium hidden sm:block">{profile?.username}</span>
+            </button>
+
+            <ProfilePanel
+              open={profileOpen}
+              onClose={() => setProfileOpen(false)}
+              session={session}
+              profile={profile}
+              signOut={signOut}
+            />
+          </>
+        )}
       </nav>
 
       {/* Content */}
@@ -217,7 +168,7 @@ export default function Leaderboard() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden divide-y divide-white/8">
-              {leaderboard.map((item, i) => (
+              {leaderboard.map((item) => (
                 <div key={item.guild.id} className="flex items-center px-5 py-4 hover:bg-white/5 transition-colors">
                   <div className="w-10 text-sm font-mono text-white/30 tabular-nums">{String(item.rank).padStart(2, "0")}</div>
                   <div className="flex-1 min-w-0 pr-4">
@@ -249,7 +200,7 @@ export default function Leaderboard() {
               <div className="w-9" />
               <div className="flex-1">User</div>
               <div className="w-14 text-center hidden sm:block">Refs</div>
-              <div className="w-12 text-center hidden sm:block">Shards</div>
+              <div className="w-14 text-center hidden sm:block">Shards</div>
               <div className="w-28 text-right">Points</div>
             </div>
 
@@ -258,7 +209,7 @@ export default function Leaderboard() {
                 <div className="px-5 py-8 text-sm text-white/40 text-center">Loading rankings…</div>
               )}
               {!contribLoading && (!topContributors || topContributors.length === 0) && (
-                <div className="px-5 py-8 text-sm text-white/40 text-center">No contributors yet — be the first.</div>
+                <div className="px-5 py-8 text-sm text-white/40 text-center">No rankings yet — be the first.</div>
               )}
               {topContributors?.map((c) => {
                 const isMe = c.user.id === profile?.id;
@@ -276,7 +227,7 @@ export default function Leaderboard() {
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-9 shrink-0">
+                    <div className="w-9 shrink-0 flex justify-center">
                       {(c.user as any).discord_avatar ? (
                         <img
                           src={(c.user as any).discord_avatar}
@@ -312,12 +263,12 @@ export default function Leaderboard() {
 
                     {/* Referrals */}
                     <div className="w-14 text-center shrink-0 hidden sm:block">
-                      <div className="text-sm font-mono text-white/70">{(c.user as any).referral_count ?? 0}</div>
+                      <span className="text-sm font-mono text-white/70">{(c.user as any).referral_count ?? 0}</span>
                     </div>
 
                     {/* Shards */}
-                    <div className="w-12 text-center shrink-0 hidden sm:block">
-                      <div className="text-sm font-mono text-white/70">{(c.user as any).shards ?? 0}</div>
+                    <div className="w-14 text-center shrink-0 hidden sm:block">
+                      <span className="text-sm font-mono text-white/70">{(c.user as any).shards ?? 0}</span>
                     </div>
 
                     {/* Points + Safe badge */}
