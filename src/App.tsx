@@ -10,6 +10,7 @@ import Merchant from "@/pages/merchant";
 import Guilds from "@/pages/guilds";
 import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
+import Drops from "@/pages/drops";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
@@ -67,6 +68,7 @@ function AppRouter() {
       <Route path="/auth/callback" component={AuthCallback} />
 
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/drops" component={Drops} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
