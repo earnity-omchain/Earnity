@@ -13,6 +13,7 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "src"),
     },
     dedupe: ["react", "react-dom"],
+    extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json"], // ← add this
   },
   root: path.resolve(import.meta.dirname),
   build: {
