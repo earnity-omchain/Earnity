@@ -13,7 +13,6 @@ import Leaderboard from "@/pages/leaderboard";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
-import GuildWaiting from "@/pages/guild-waiting";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -84,7 +83,6 @@ function AppRouter() {
       {/* Protected routes */}
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
-      <Route path="/guild-waiting" component={() => <ProtectedRoute component={GuildWaiting} />} />
 
       <Route component={NotFound} />
     </Switch>
