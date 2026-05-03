@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
-import { ProfilePanel } from "@/components/profile-panel.tsx";
+import { ProfilePanel } from "@/components/profile-panel";
 
 const ASSETS = {
   background: import.meta.env.BASE_URL + "background-1.png",
