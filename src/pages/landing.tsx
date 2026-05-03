@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Loader2, Shield, Swords, CheckCircle2, AlertCircle,
-  Sparkles, ArrowLeft, LogIn,
+  Sparkles, ArrowLeft, LogIn, Copy, Check, ChevronDown,
+  Wallet, Star, Zap, Clock, Trophy, ShoppingBag, LayoutDashboard,
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
 
 const ASSETS = {
   background: import.meta.env.BASE_URL + "background-1.png",
+  background2: import.meta.env.BASE_URL + "background-2.png",
+  logo: import.meta.env.BASE_URL + "logo.jpg",
   seal:       import.meta.env.BASE_URL + "Seal2.png",
   fire:       import.meta.env.BASE_URL + "Fire.png",
   water:      import.meta.env.BASE_URL + "Water.png",
@@ -23,7 +26,7 @@ const ASSETS = {
   wind:       import.meta.env.BASE_URL + "Wind.png",
 };
 
-type Phase = "loading" | "gate" | "code" | "validating" | "choice" | "rabel" | "pledge";
+type Phase = "loading" | "gate" | "code" | "validating" | "choice" | "rabel" | "pledge" | "waiting";
 
 const ELEMENTS = [
   { id: "fire",      name: "Fire",      img: ASSETS.fire,      text: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10", ring: "ring-orange-500/30",  glow: "rgba(249,115,22,0.4)"  },
@@ -33,6 +36,37 @@ const ELEMENTS = [
   { id: "lightning", name: "Lightning", img: ASSETS.lightning, text: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10", ring: "ring-yellow-400/30",  glow: "rgba(250,204,21,0.4)"  },
   { id: "wind",      name: "Wind",      img: ASSETS.wind,      text: "text-sky-300",    border: "border-sky-300/40",    bg: "bg-sky-300/10",    ring: "ring-sky-300/30",     glow: "rgba(125,211,252,0.4)" },
 ];
+
+
+// ── Universal deadline ───────────────────────────────────────────────────────
+const DEADLINE = new Date("2026-05-10T23:59:59Z");
+
+function useCountdown(target: Date) {
+  const calc = () => {
+    const diff = target.getTime() - Date.now();
+    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+    return {
+      days:    Math.floor(diff / 86400000),
+      hours:   Math.floor((diff % 86400000) / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+      expired: false,
+    };
+  };
+  const [t, setT] = useState(calc);
+  useEffect(() => { const id = setInterval(() => setT(calc()), 1000); return () => clearInterval(id); }, []);
+  return t;
+}
+
+function CopyBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white">
+      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
 
 // ── Orbiting Ring Component ───────────────────────────────────────────────────
 function OrbitingElements({
@@ -130,6 +164,77 @@ function OrbitingElements({
   );
 }
 
+
+// ── Profile dropdown for waiting phase ───────────────────────────────────────
+function ProfileMenu({ profile, full, signOut }: any) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const el = full?.element ? ELEMENTS.find(e => e.id === full.element) : null;
+  const wallet = full?.wallet_address;
+  const short = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
+        {full?.discord_avatar
+          ? <img src={full.discord_avatar} className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} object-cover`} />
+          : <div className={`w-7 h-7 rounded-lg border ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold`}>{profile?.username?.charAt(0).toUpperCase()}</div>
+        }
+        <span className="text-sm text-white/80 font-medium hidden sm:block">{profile?.username}</span>
+        <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-black/85 backdrop-blur-2xl shadow-2xl z-50 overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center gap-3">
+              {full?.discord_avatar
+                ? <img src={full.discord_avatar} className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} object-cover`} />
+                : <div className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold`}>{profile?.username?.charAt(0).toUpperCase()}</div>
+              }
+              <div>
+                <div className="font-semibold text-white">{profile?.username}</div>
+                {el && <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}><img src={el.img} className="w-3.5 h-3.5 object-contain" />{el.name} element</div>}
+                <div className="text-xs text-white/40 mt-0.5">{full?.contribution_score?.toLocaleString() ?? 0} pts</div>
+              </div>
+            </div>
+            {short && (
+              <div className="px-4 py-3 border-b border-white/10">
+                <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
+                <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
+                  <span className="font-mono text-xs text-white/60">{short}</span>
+                  <CopyBtn text={wallet} />
+                </div>
+              </div>
+            )}
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
+              <div className="grid grid-cols-4 gap-2">
+                {[{icon: Shield, label:"Shields", color:"text-blue-400"},{icon:Swords,label:"Rugs",color:"text-red-400"},{icon:Zap,label:"Drain",color:"text-orange-400"},{icon:Star,label:"Shards",color:"text-yellow-400"}].map(({icon:Icon,label,color})=>(
+                  <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
+                    <Icon className={`w-4 h-4 ${color}`}/><span className="text-sm font-bold text-white">0</span><span className="text-[9px] text-white/30">{label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/25 text-center mt-2">Mystery boxes unlock in Phase 2</p>
+            </div>
+            <div className="p-2">
+              <button onClick={() => { signOut(); setOpen(false); }} className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">Sign Out</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Landing() {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -140,6 +245,27 @@ export default function Landing() {
   const [xUsername, setXUsername] = useState("");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const cd = useCountdown(DEADLINE);
+
+  // Full profile data for waiting phase (avatar, wallet, element)
+  const { data: fullProfile } = useQuery({
+    queryKey: ["landing-full-profile", session?.user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("discord_avatar, wallet_address, element, contribution_score, username")
+        .eq("id", session!.user.id)
+        .single();
+      return data;
+    },
+    enabled: !!session?.user?.id && phase === "waiting",
+  });
+
+  const handleSignOut = async () => {
+    await auth.signOut();
+    setPhase("gate");
+    setSession(null);
+  };
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
@@ -188,13 +314,13 @@ export default function Landing() {
     if (!session) { setPhase("gate"); return; }
     if (profileLoading) { setPhase("loading"); return; }
     if (!profile?.invite_code_used) { setPhase("code"); return; }
-    // If element already chosen → go to guild waiting page directly
-    if ((profile as any)?.element) { setLocation("/guild-waiting"); return; }
+    // If element already chosen → show waiting phase
+    if ((profile as any)?.element) { setPhase("waiting"); return; }
     if (!profile?.guild_id) { setPhase("choice"); return; }
     if (!profile.username || !profile.wallet_address) {
       setLocation("/connect");
     } else {
-      setLocation("/guild-waiting");
+      setPhase("waiting");
     }
   }, [session, profile, sessionReady, profileLoading, setLocation]);
 
@@ -221,7 +347,7 @@ export default function Landing() {
   mutationFn: ({ name, element, xUsername }: { name: string; element: string; xUsername: string }) =>
     api.submitGuildRequest({ name, element, xUsername }),
     onSuccess: () => {
-      setTimeout(() => setLocation("/connect"), 800);
+      setPhase("waiting");
     },
   });
 
@@ -236,7 +362,7 @@ export default function Landing() {
       if (error) throw error;
     },
     onSuccess: () => {
-      setLocation("/guild-waiting");
+      setPhase("waiting");
     },
   });
 
@@ -467,8 +593,7 @@ export default function Landing() {
               </div>
             </motion.div>
           )}
-
-          {/* ── PLEDGE: Choose element → saves to profile → guild-waiting ── */}
+          {/* ── PLEDGE: Choose element → saves to profile → waiting phase ── */}
           {phase === "pledge" && (
             <motion.div key="pledge" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6">
               <div className="w-full max-w-xl">
@@ -526,6 +651,123 @@ export default function Landing() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+
+
+          {/* ── WAITING PHASE ── Full screen, own background, no sidebar ── */}
+          {phase === "waiting" && (
+            <motion.div key="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex flex-col text-white"
+              style={{ backgroundImage: `url(${ASSETS.background2})`, backgroundSize: "cover", backgroundPosition: "center" }}
+            >
+              {/* Dark overlay */}
+              <div className="absolute inset-0 bg-black/70" />
+
+              {/* Top nav */}
+              <nav className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
+                    <img src={ASSETS.logo} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-sm font-bold tracking-tight hidden sm:block">EARNITY</span>
+                </div>
+
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {[
+                    { label: "Leaderboard", soon: false, onClick: () => setLocation("/leaderboard") },
+                    { label: "Daily Drop",  soon: false, onClick: () => {} },
+                    { label: "Merchant",    soon: true,  onClick: () => {} },
+                    { label: "Stake",       soon: true,  onClick: () => {} },
+                  ].map(({ label, soon, onClick }) => (
+                    <button key={label} onClick={onClick} disabled={soon}
+                      className={`relative px-3 sm:px-4 py-1.5 rounded-lg text-sm transition-colors ${soon ? "text-white/25 cursor-not-allowed" : "text-white/60 hover:text-white hover:bg-white/8"}`}>
+                      {label}
+                      {soon && <span className="absolute -top-1.5 -right-1 text-[8px] uppercase bg-white/10 text-white/35 px-1 rounded-full">soon</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {session && profile && (
+                  <ProfileMenu
+                    profile={profile}
+                    full={fullProfile}
+                    signOut={handleSignOut}
+                  />
+                )}
+              </nav>
+
+              {/* Content */}
+              <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+                {(() => {
+                  const el = (fullProfile as any)?.element ? ELEMENTS.find(e => e.id === (fullProfile as any).element) : null;
+                  return (
+                    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 22 }} className="w-full max-w-md">
+                      {/* Seal */}
+                      <div className="relative w-36 h-36 mx-auto mb-10">
+                        {el && <div className={`absolute inset-0 rounded-full blur-3xl opacity-50 ${el.bg}`} />}
+                        <motion.img src={ASSETS.seal} animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                          className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_50px_rgba(255,255,255,0.08)]" />
+                        {el && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: "spring" }}
+                            className={`absolute -bottom-1 -right-1 w-11 h-11 rounded-full border-2 ${el.border} ${el.bg} backdrop-blur-md flex items-center justify-center z-20`}>
+                            <img src={el.img} className="w-6 h-6 object-contain" />
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Heading */}
+                      {el
+                        ? <p className={`text-xs uppercase tracking-[0.2em] ${el.text} mb-3`}>{el.name} element bound</p>
+                        : <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">awaiting the protocol</p>
+                      }
+                      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
+                        {el ? "Your path
+is chosen" : "The protocol
+awaits"}
+                      </h1>
+                      <p className="mt-4 text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
+                        Guild submissions are open. Once the timer expires, the 20 guilds will be selected and the protocol begins.
+                      </p>
+
+                      {/* Countdown */}
+                      <div className="mt-10">
+                        <div className="flex items-center justify-center gap-2 mb-5">
+                          <Clock className="w-3.5 h-3.5 text-white/30" />
+                          <span className="text-[11px] uppercase tracking-[0.18em] text-white/30">
+                            {cd.expired ? "Submissions closed" : "Guild submission closes in"}
+                          </span>
+                        </div>
+                        {!cd.expired ? (
+                          <div className="flex items-center justify-center gap-3">
+                            {[{v:cd.days,l:"Days"},{v:cd.hours,l:"Hours"},{v:cd.minutes,l:"Min"},{v:cd.seconds,l:"Sec"}].map(({v,l},i)=>(
+                              <div key={l} className="flex items-center gap-3">
+                                <div className="flex flex-col items-center">
+                                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md flex items-center justify-center">
+                                    <span className="text-2xl sm:text-3xl font-bold tabular-nums">{String(v).padStart(2,"0")}</span>
+                                  </div>
+                                  <span className="text-[10px] uppercase tracking-widest text-white/30 mt-2">{l}</span>
+                                </div>
+                                {i < 3 && <span className="text-2xl font-light text-white/20 mb-5">:</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-white/10 bg-white/5 text-white/40 text-sm">Guild selection in progress…</div>
+                        )}
+                      </div>
+
+                      {/* Status pill */}
+                      <div className={`mt-8 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border ${el?.border || "border-white/10"} ${el?.bg || "bg-white/5"} backdrop-blur-md text-sm`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                        <span className={el?.text || "text-white/50"}>
+                          {el ? `${el.name} soul bound` : "Request submitted — pending review"}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
               </div>
             </motion.div>
           )}
