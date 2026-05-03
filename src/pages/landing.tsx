@@ -245,6 +245,11 @@ export default function Landing() {
   const [xUsername, setXUsername] = useState("");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+
+  // Session must be declared before any query that uses it
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+
   const cd = useCountdown(DEADLINE);
 
   // Full profile data for waiting phase (avatar, wallet, element)
@@ -266,9 +271,6 @@ export default function Landing() {
     setPhase("gate");
     setSession(null);
   };
-
-  const [session, setSession] = useState<Session | null>(null);
-  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
