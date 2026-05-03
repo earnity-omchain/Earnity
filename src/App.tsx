@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Layout } from "@/components/layout";
 import { PublicShell } from "@/components/public-shell";
 import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
+import Merchant from "@/pages/merchant";
 import Guilds from "@/pages/guilds";
 import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
@@ -66,9 +66,7 @@ function AppRouter() {
       <Route path="/connect" component={Connect} />
       <Route path="/auth/callback" component={AuthCallback} />
 
-      <Route path="/leaderboard">
-        <PublicLayout><Leaderboard /></PublicLayout>
-      </Route>
+      <Route path="/leaderboard" component={Leaderboard} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
@@ -81,7 +79,7 @@ function AppRouter() {
       </Route>
 
       {/* Protected routes */}
-      <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/merchant" component={Merchant} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
 
       <Route component={NotFound} />
