@@ -16,17 +16,18 @@ const ASSETS = {
   water:      import.meta.env.BASE_URL + "Water.png",
   nature:     import.meta.env.BASE_URL + "Nature.png",
   rock:       import.meta.env.BASE_URL + "Rock.png",
-  lightning:  import.meta.env.BASE_URL + "Lightning.png",
+  lighting:   import.meta.env.BASE_URL + "Lightning.png",
   wind:       import.meta.env.BASE_URL + "Wind.png",
 };
 
 const ELEMENT_META: Record<string, { text: string; border: string; bg: string; img: string }> = {
-  fire:      { text: "text-orange-400", border: "border-orange-500/50", bg: "bg-orange-500/15", img: ASSETS.fire      },
-  water:     { text: "text-blue-400",   border: "border-blue-500/50",   bg: "bg-blue-500/15",   img: ASSETS.water     },
-  nature:    { text: "text-green-400",  border: "border-green-500/50",  bg: "bg-green-500/15",  img: ASSETS.nature    },
-  rock:      { text: "text-stone-400",  border: "border-stone-500/50",  bg: "bg-stone-500/15",  img: ASSETS.rock      },
-  lightning: { text: "text-yellow-400", border: "border-yellow-400/50", bg: "bg-yellow-400/15", img: ASSETS.lightning },
-  wind:      { text: "text-sky-300",    border: "border-sky-300/50",    bg: "bg-sky-300/15",    img: ASSETS.wind      },
+  fire:      { text: "text-orange-400", border: "border-orange-500/50", bg: "bg-orange-500/15", img: ASSETS.fire     },
+  water:     { text: "text-blue-400",   border: "border-blue-500/50",   bg: "bg-blue-500/15",   img: ASSETS.water    },
+  nature:    { text: "text-green-400",  border: "border-green-500/50",  bg: "bg-green-500/15",  img: ASSETS.nature   },
+  rock:      { text: "text-stone-400",  border: "border-stone-500/50",  bg: "bg-stone-500/15",  img: ASSETS.rock     },
+  lightning: { text: "text-yellow-400", border: "border-yellow-400/50", bg: "bg-yellow-400/15", img: ASSETS.lighting },
+  lighting:  { text: "text-yellow-400", border: "border-yellow-400/50", bg: "bg-yellow-400/15", img: ASSETS.lighting },
+  wind:      { text: "text-sky-300",    border: "border-sky-300/50",    bg: "bg-sky-300/15",    img: ASSETS.wind     },
 };
 
 function CopyBtn({ text }: { text: string }) {
@@ -91,7 +92,7 @@ function ProfileMenu({ profile, full, signOut }: any) {
             <div className="px-4 py-3 border-b border-white/10">
               <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
               <div className="grid grid-cols-4 gap-2">
-                {[{icon:Shield,label:"Shields",color:"text-blue-400"},{icon:Swords,label:"Rugs",color:"text-red-400"},{icon:Zap,label:"Drain",color:"text-orange-400"},{icon:Star,label:"Shards",color:"text-yellow-400"}].map(({icon:Icon,label,color})=> (
+                {[{icon:Shield,label:"Shields",color:"text-blue-400"},{icon:Swords,label:"Rugs",color:"text-red-400"},{icon:Zap,label:"Drain",color:"text-orange-400"},{icon:Star,label:"Shards",color:"text-yellow-400"}].map(({icon:Icon,label,color})=>(
                   <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
                     <Icon className={`w-4 h-4 ${color}`}/><span className="text-sm font-bold text-white">0</span><span className="text-[9px] text-white/30">{label}</span>
                   </div>
@@ -216,7 +217,7 @@ export default function Leaderboard() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden divide-y divide-white/8">
-              {leaderboard.map((item) => (
+              {leaderboard.map((item, i) => (
                 <div key={item.guild.id} className="flex items-center px-5 py-4 hover:bg-white/5 transition-colors">
                   <div className="w-10 text-sm font-mono text-white/30 tabular-nums">{String(item.rank).padStart(2, "0")}</div>
                   <div className="flex-1 min-w-0 pr-4">
@@ -241,96 +242,101 @@ export default function Leaderboard() {
             <span className="ml-auto text-xs text-white/30">Top 2000 survive</span>
           </div>
 
-          {/* Column headers */}
-          <div className="hidden sm:grid grid-cols-[48px_40px_1fr_72px_72px_80px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-white/30">
-            <div>Avatar</div>
-            <div className="text-center">Rank</div>
-            <div>User</div>
-            <div className="text-center">Referrals</div>
-            <div className="text-center">Shards</div>
-            <div className="text-right">Points</div>
-          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden">
+            {/* Column headers */}
+            <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/10 text-[10px] uppercase tracking-wider text-white/30">
+              <div className="w-8 text-center">#</div>
+              <div className="w-9" />
+              <div className="flex-1">User</div>
+              <div className="w-14 text-center hidden sm:block">Refs</div>
+              <div className="w-12 text-center hidden sm:block">Shards</div>
+              <div className="w-28 text-right">Points</div>
+            </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden divide-y divide-white/8">
-            {contribLoading && (
-              <div className="px-5 py-8 text-sm text-white/40 text-center">Loading rankings…</div>
-            )}
-            {!contribLoading && (!topContributors || topContributors.length === 0) && (
-              <div className="px-5 py-8 text-sm text-white/40 text-center">No contributors yet — be the first.</div>
-            )}
-            {topContributors?.map((c) => {
-              const isMe = c.user.id === profile?.id;
-              const u = c.user;
-              const el = u.element ? ELEMENT_META[u.element] : null;
-              const top2000 = c.rank <= 2000;
+            <div className="divide-y divide-white/8">
+              {contribLoading && (
+                <div className="px-5 py-8 text-sm text-white/40 text-center">Loading rankings…</div>
+              )}
+              {!contribLoading && (!topContributors || topContributors.length === 0) && (
+                <div className="px-5 py-8 text-sm text-white/40 text-center">No contributors yet — be the first.</div>
+              )}
+              {topContributors?.map((c) => {
+                const isMe = c.user.id === profile?.id;
+                const el = (c.user as any).element ? ELEMENT_META[(c.user as any).element] : null;
+                const top2000 = c.rank <= 2000;
+                return (
+                  <div key={c.user.id} className={`flex items-center gap-3 px-5 py-3 transition-colors ${isMe ? "bg-white/8" : "hover:bg-white/4"}`}>
+                    {/* Rank */}
+                    <div className="w-8 text-center shrink-0">
+                      {c.rank <= 3 ? (
+                        <span className="text-lg">{c.rank === 1 ? "🥇" : c.rank === 2 ? "🥈" : "🥉"}</span>
+                      ) : (
+                        <span className="text-sm font-mono text-white/30 tabular-nums">{String(c.rank).padStart(2, "0")}</span>
+                      )}
+                    </div>
 
-              return (
-                <div
-                  key={u.id}
-                  className={`grid grid-cols-[40px_1fr_72px] sm:grid-cols-[48px_40px_1fr_72px_72px_80px] gap-2 sm:gap-2 items-center px-4 py-3 transition-colors ${isMe ? "bg-white/8" : "hover:bg-white/4"}`}
-                >
-                  {/* Discord avatar */}
-                  <div className="flex-shrink-0">
-                    {u.discord_avatar
-                      ? <img src={u.discord_avatar} className={`w-9 h-9 rounded-xl border ${el?.border || "border-white/15"} object-cover`} />
-                      : <div className={`w-9 h-9 rounded-xl border ${el?.border || "border-white/15"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
-                          {u.username?.charAt(0).toUpperCase()}
+                    {/* Avatar */}
+                    <div className="w-9 shrink-0">
+                      {(c.user as any).discord_avatar ? (
+                        <img
+                          src={(c.user as any).discord_avatar}
+                          alt=""
+                          className="w-8 h-8 rounded-lg object-cover border border-white/10"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white/60">
+                          {c.user.username?.charAt(0).toUpperCase()}
                         </div>
-                    }
-                  </div>
-
-                  {/* Rank — hidden on mobile (shown inline with name) */}
-                  <div className="hidden sm:flex flex-shrink-0 justify-center">
-                    {c.rank <= 3
-                      ? <span className="text-base">{c.rank === 1 ? "🥇" : c.rank === 2 ? "🥈" : "🥉"}</span>
-                      : <span className="text-xs font-mono text-white/30 tabular-nums">{String(c.rank).padStart(2, "0")}</span>
-                    }
-                  </div>
-
-                  {/* Username + element */}
-                  <div className="min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      {/* Mobile rank */}
-                      <span className="sm:hidden text-xs font-mono text-white/30 tabular-nums">{String(c.rank).padStart(2, "0")}</span>
-                      <span className={`text-sm font-semibold truncate ${isMe ? "text-white" : "text-white/85"}`}>{u.username}</span>
-                      {isMe && <span className="text-[9px] text-white/30 border border-white/15 px-1 py-0.5 rounded-full flex-shrink-0">You</span>}
+                      )}
                     </div>
-                    {el && (
-                      <div className={`flex items-center gap-1 mt-0.5 text-[10px] ${el.text}`}>
-                        <img src={el.img} className="w-3 h-3 object-contain" />
-                        <span className="truncate">{u.element}</span>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Referrals count */}
-                  <div className="hidden sm:flex flex-col items-center flex-shrink-0">
-                    <span className="text-sm font-bold text-white/70 tabular-nums">{u.referral_count ?? 0}</span>
-                    <span className="text-[9px] text-white/30 uppercase tracking-wide">Refs</span>
-                  </div>
-
-                  {/* Shards count */}
-                  <div className="hidden sm:flex flex-col items-center flex-shrink-0">
-                    <div className="flex items-center gap-0.5">
-                      <Star className="w-3 h-3 text-yellow-400" />
-                      <span className="text-sm font-bold text-white/70 tabular-nums">{u.shards ?? 0}</span>
-                    </div>
-                    <span className="text-[9px] text-white/30 uppercase tracking-wide">Shards</span>
-                  </div>
-
-                  {/* Total points + safe badge */}
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className="font-mono text-sm font-bold tabular-nums text-white">{u.contribution_score.toLocaleString()}</span>
-                    {top2000
-                      ? <span className="text-[9px] text-green-400 mt-0.5 flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5" /> Safe
+                    {/* Username + Element */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium truncate ${isMe ? "text-white" : "text-white/80"}`}>
+                          {c.user.username}
                         </span>
-                      : <span className="text-[9px] text-white/25 mt-0.5">pts</span>
-                    }
+                        {isMe && (
+                          <span className="text-[10px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded-full shrink-0">
+                            You
+                          </span>
+                        )}
+                      </div>
+                      {el && (
+                        <div className={`inline-flex items-center gap-1 mt-0.5 text-[10px] ${el.text}`}>
+                          <img src={el.img} className="w-3 h-3 object-contain" alt="" />
+                          <span className="capitalize">{(c.user as any).element}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Referrals */}
+                    <div className="w-14 text-center shrink-0 hidden sm:block">
+                      <div className="text-sm font-mono text-white/70">{(c.user as any).referral_count ?? 0}</div>
+                    </div>
+
+                    {/* Shards */}
+                    <div className="w-12 text-center shrink-0 hidden sm:block">
+                      <div className="text-sm font-mono text-white/70">{(c.user as any).shards ?? 0}</div>
+                    </div>
+
+                    {/* Points + Safe badge */}
+                    <div className="w-28 text-right shrink-0">
+                      <div className="flex items-center justify-end gap-2">
+                        {top2000 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400">
+                            ✓ Safe
+                          </span>
+                        )}
+                        <span className="font-mono text-sm tabular-nums text-white">
+                          {c.user.contribution_score.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </motion.section>
 
