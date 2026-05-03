@@ -593,6 +593,7 @@ export default function Landing() {
               </div>
             </motion.div>
           )}
+
           {/* ── PLEDGE: Choose element → saves to profile → waiting phase ── */}
           {phase === "pledge" && (
             <motion.div key="pledge" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-6">
@@ -723,9 +724,7 @@ export default function Landing() {
                         : <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">awaiting the protocol</p>
                       }
                       <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-                        {el ? "Your path
-is chosen" : "The protocol
-awaits"}
+                        {el ? "Your path is chosen" : "The protocol awaits"}
                       </h1>
                       <p className="mt-4 text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
                         Guild submissions are open. Once the timer expires, the 20 guilds will be selected and the protocol begins.
