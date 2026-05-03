@@ -169,6 +169,7 @@ function OrbitingElements({
 function ProfileMenu({ profile, full, signOut }: any) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Must render above seal, text, background layers
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
@@ -180,7 +181,7 @@ function ProfileMenu({ profile, full, signOut }: any) {
   const short = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-[100]">
       <button onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors">
         {full?.discord_avatar
@@ -193,7 +194,7 @@ function ProfileMenu({ profile, full, signOut }: any) {
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-black/85 backdrop-blur-2xl shadow-2xl z-50 overflow-hidden">
+            className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[200] overflow-hidden">
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
               {full?.discord_avatar
                 ? <img src={full.discord_avatar} className={`w-14 h-14 rounded-xl border-2 ${el?.border || "border-white/20"} object-cover`} />
@@ -669,7 +670,7 @@ export default function Landing() {
               <div className="absolute inset-0 bg-black/70" />
 
               {/* Top nav */}
-              <nav className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
+              <nav className="relative z-30 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
                     <img src={ASSETS.logo} className="w-full h-full object-cover" />
@@ -702,7 +703,7 @@ export default function Landing() {
               </nav>
 
               {/* Content */}
-              <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+              <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 text-center overflow-hidden">
                 {(() => {
                   const el = (fullProfile as any)?.element ? ELEMENTS.find(e => e.id === (fullProfile as any).element) : null;
                   return (
