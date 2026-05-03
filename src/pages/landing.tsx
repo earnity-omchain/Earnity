@@ -679,10 +679,10 @@ export default function Landing() {
 
                 <div className="flex items-center gap-1 sm:gap-2">
                   {[
-                    { label: "Leaderboard", soon: false, onClick: () => setLocation("/leaderboard") },
-                    { label: "Daily Drop",  soon: false, onClick: () => {} },
-                    { label: "Merchant",    soon: true,  onClick: () => {} },
-                    { label: "Stake",       soon: true,  onClick: () => {} },
+                    { label: "Rank", soon: false, onClick: () => setLocation("/leaderboard") },
+                    { label: "Drops", soon: false, onClick: () => {} },
+                    { label: "Merchant", soon: false, onClick: () => setLocation("/merchant") },
+                    { label: "Stake", soon: true, onClick: () => {} },
                   ].map(({ label, soon, onClick }) => (
                     <button key={label} onClick={onClick} disabled={soon}
                       className={`relative px-3 sm:px-4 py-1.5 rounded-lg text-sm transition-colors ${soon ? "text-white/25 cursor-not-allowed" : "text-white/60 hover:text-white hover:bg-white/8"}`}>
