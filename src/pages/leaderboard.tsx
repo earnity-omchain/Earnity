@@ -250,42 +250,63 @@ export default function Leaderboard() {
             )}
             {topContributors?.map((c) => {
               const isMe = c.user.id === profile?.id;
-              const el = (c as any).element ? ELEMENT_META[(c as any).element] : null;
+              const u = c.user as any;
+              const el = u.element ? ELEMENT_META[u.element] : null;
               const top2000 = c.rank <= 2000;
               return (
-                <div key={c.user.id} className={`flex items-center px-5 py-3.5 transition-colors ${isMe ? "bg-white/8" : "hover:bg-white/4"}`}>
+                <div key={c.user.id} className={`flex items-center gap-3 px-4 py-3 transition-colors ${isMe ? "bg-white/8" : "hover:bg-white/4"}`}>
                   {/* Rank */}
-                  <div className="w-10 flex-shrink-0">
-                    {c.rank <= 3 ? (
-                      <div className={`text-base font-bold ${c.rank === 1 ? "text-yellow-400" : c.rank === 2 ? "text-slate-300" : "text-amber-600"}`}>
-                        {c.rank === 1 ? "🥇" : c.rank === 2 ? "🥈" : "🥉"}
-                      </div>
-                    ) : (
-                      <div className="text-sm font-mono text-white/30 tabular-nums">{String(c.rank).padStart(2, "0")}</div>
-                    )}
+                  <div className="w-7 flex-shrink-0 text-center">
+                    {c.rank <= 3
+                      ? <span className="text-base">{c.rank === 1 ? "🥇" : c.rank === 2 ? "🥈" : "🥉"}</span>
+                      : <span className="text-xs font-mono text-white/30">{String(c.rank).padStart(2, "0")}</span>
+                    }
                   </div>
 
-                  {/* Name + guild */}
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <span className={`text-sm font-medium truncate ${isMe ? "text-white" : "text-white/80"}`}>
-                      {c.user.username}
-                      {isMe && <span className="ml-1.5 text-[10px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded-full">You</span>}
-                    </span>
-                    {c.guild && (
-                      <span className="text-xs text-white/30 truncate hidden sm:block">{c.guild.name}</span>
-                    )}
+                  {/* Discord avatar */}
+                  <div className="flex-shrink-0">
+                    {u.discord_avatar
+                      ? <img src={u.discord_avatar} className={`w-9 h-9 rounded-xl border ${el?.border || "border-white/15"} object-cover`} />
+                      : <div className={`w-9 h-9 rounded-xl border ${el?.border || "border-white/15"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>{c.user.username?.charAt(0).toUpperCase()}</div>
+                    }
                   </div>
 
-                  {/* Score + survival badge */}
-                  <div className="flex items-center gap-3">
-                    {top2000 && (
-                      <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400">
-                        ✓ Safe
-                      </div>
-                    )}
-                    <div className="font-mono text-sm tabular-nums text-white/80">
-                      {c.user.contribution_score.toLocaleString()}
+                  {/* Name + element */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-sm font-semibold truncate ${isMe ? "text-white" : "text-white/85"}`}>{c.user.username}</span>
+                      {isMe && <span className="text-[9px] text-white/30 border border-white/15 px-1 py-0.5 rounded-full">You</span>}
                     </div>
+                    {el && (
+                      <div className={`flex items-center gap-1 mt-0.5 text-[10px] ${el.text}`}>
+                        <img src={el.img} className="w-3 h-3 object-contain" />
+                        {u.element}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Referrals */}
+                  <div className="hidden sm:flex flex-col items-center flex-shrink-0 w-10">
+                    <span className="text-sm font-bold text-white/70">{u.referral_count ?? 0}</span>
+                    <span className="text-[9px] text-white/30 uppercase tracking-wide">Refs</span>
+                  </div>
+
+                  {/* Shards */}
+                  <div className="hidden sm:flex flex-col items-center flex-shrink-0 w-10">
+                    <div className="flex items-center gap-0.5">
+                      <Star className="w-3 h-3 text-yellow-400" />
+                      <span className="text-sm font-bold text-white/70">{u.shards ?? 0}</span>
+                    </div>
+                    <span className="text-[9px] text-white/30 uppercase tracking-wide">Shards</span>
+                  </div>
+
+                  {/* Points + safe badge */}
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    <span className="font-mono text-sm font-bold tabular-nums text-white">{c.user.contribution_score.toLocaleString()}</span>
+                    {top2000
+                      ? <span className="text-[9px] text-green-400 mt-0.5">✓ Safe</span>
+                      : <span className="text-[9px] text-white/25 mt-0.5">pts</span>
+                    }
                   </div>
                 </div>
               );
