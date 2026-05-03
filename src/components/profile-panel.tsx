@@ -37,7 +37,7 @@ interface ProfilePanelProps {
 }
 
 export function ProfilePanel({ open, onClose, session, profile, signOut }: ProfilePanelProps) {
-  const { data: fullProfile, isLoading: profileLoading } = useQuery({
+  const { data: fullProfile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ["profile-panel", session?.user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -49,6 +49,8 @@ export function ProfilePanel({ open, onClose, session, profile, signOut }: Profi
       return data;
     },
     enabled: !!session?.user?.id && open,
+    retry: 2,
+    staleTime: 30_000,
   });
 
   const { data: referralCodes, isLoading: codesLoading } = useQuery({
@@ -67,16 +69,17 @@ export function ProfilePanel({ open, onClose, session, profile, signOut }: Profi
   });
 
   const guild = (fullProfile as any)?.guilds;
-  const elementId = fullProfile?.element || guild?.element;
+  const elementId = fullProfile?.element || guild?.element || (profile as any)?.element;
   const elStyle = elementId ? ELEMENTS.find(e => e.id === elementId) : null;
-  const discordAvatar = fullProfile?.discord_avatar;
-  const wallet = fullProfile?.wallet_address;
+  const discordAvatar = fullProfile?.discord_avatar || (profile as any)?.discord_avatar;
+  const wallet = fullProfile?.wallet_address || (profile as any)?.wallet_address;
   const score = fullProfile?.contribution_score ?? 0;
   const activeCodes = referralCodes?.filter((c: any) => c.is_active && !c.used_by) ?? [];
   const usedCodes = referralCodes?.filter((c: any) => c.used_by) ?? [];
   const shortWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
 
-  const isLoading = profileLoading || codesLoading;
+  // Show spinner only when actively loading with no data yet; never block on error
+  const isLoading = (profileLoading && !fullProfile && !profileError) || (codesLoading && !referralCodes);
 
   return (
     <AnimatePresence>
@@ -191,6 +194,93 @@ export function ProfilePanel({ open, onClose, session, profile, signOut }: Profi
                       </div>
                     ) : (
                       <div className="text-sm text-white/40 text-center py-3 bg-white/5 rounded-xl border border-white/10">
+                        No wallet bound yet.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Inventory ── */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Gift className="w-4 h-4 text-white/40" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Inventory</h3>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { icon: Shield, label: "Shields", count: 0, color: "text-blue-400" },
+                        { icon: Swords, label: "Rug Cards", count: 0, color: "text-red-400" },
+                        { icon: Zap, label: "Drainers", count: 0, color: "text-orange-400" },
+                        { icon: Star, label: "Shards", count: 0, color: "text-yellow-400" },
+                      ].map(({ icon: Icon, label, count, color }) => (
+                        <div key={label} className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 p-3">
+                          <Icon className={`w-5 h-5 ${color}`} />
+                          <span className="text-lg font-bold text-white">{count}</span>
+                          <span className="text-[10px] text-white/40 text-center leading-tight">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-white/25 text-center mt-3">
+                      Mystery boxes unlock in Phase 2 — coming soon
+                    </p>
+                  </div>
+
+                  {/* ── Referral Codes ── */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-4 h-4 text-white/40" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Referral Codes</h3>
+                      <span className="ml-auto text-xs text-white/30">+50 pts per referral</span>
+                    </div>
+
+                    {activeCodes.length > 0 ? (
+                      <div className="space-y-2">
+                        {activeCodes.map((c: any) => (
+                          <div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                            <span className="font-mono text-sm tracking-widest text-white/80">{c.code}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-green-400">Active</span>
+                              <CopyBtn text={c.code} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-white/40 text-center py-3 bg-white/5 rounded-xl border border-white/10">
+                        {codesLoading ? "Loading codes…" : "Your referral codes are being generated…"}
+                      </p>
+                    )}
+
+                    {usedCodes.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-xs text-white/30 mb-2">{usedCodes.length} code{usedCodes.length > 1 ? "s" : ""} used</p>
+                        <div className="space-y-1.5">
+                          {usedCodes.map((c: any) => (
+                            <div key={c.code} className="flex items-center justify-between px-4 py-2 rounded-lg bg-white/5 border border-white/5">
+                              <span className="font-mono text-xs text-white/40 tracking-widest">{c.code}</span>
+                              <span className="text-xs text-white/30">Used</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => { signOut(); onClose(); }}
+                    className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+ text-white/40 text-center py-3 bg-white/5 rounded-xl border border-white/10">
                         No wallet bound yet.
                       </div>
                     )}
