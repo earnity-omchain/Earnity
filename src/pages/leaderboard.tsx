@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Star, Trophy, Crown } from "lucide-react";
-import { ProfilePanel } from "@/components/profile-panel";
+import { ProfilePanel } from "@/components/profile-panel.tsx";
 
 const ASSETS = {
   background: import.meta.env.BASE_URL + "background-2.png",
