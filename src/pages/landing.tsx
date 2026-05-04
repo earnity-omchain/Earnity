@@ -173,7 +173,7 @@ function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut }: {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[100] overflow-hidden"
           >
             {/* ── Header ── */}
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
@@ -736,7 +736,7 @@ export default function Landing() {
               <div className="absolute inset-0 bg-black/70" />
 
               {/* Nav */}
-              <nav className="relative z-10 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
+              <nav className="relative z-[60] flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
                     <img src={ASSETS.logo} className="w-full h-full object-cover" />
