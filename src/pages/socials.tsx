@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Twitter, MessageCircle, ExternalLink,
   ChevronDown, Copy, Check, Shield, Swords, Zap, Star, Users,
-  CheckCircle2, Timer, Loader2,
+  CheckCircle2, Timer,
 } from "lucide-react";
 
 const BASE = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets/Game%20assets";
@@ -33,7 +33,7 @@ const ELEMENT_META: Record<string, { text: string; border: string; bg: string; i
 
 const FOLLOW_QUESTS = [
   { id: "follow-x",     platform: "X / Twitter", icon: Twitter,        color: "text-sky-400",    border: "border-sky-500/30",    bg: "bg-sky-500/8",    points: 100, url: "https://x.com/earnity_",          handle: "@earnity_",          desc: "Follow Earnity on X for announcements, alpha leaks, and guild war coverage." },
-  { id: "join-discord", platform: "Discord",      icon: MessageCircle, color: "text-indigo-400", border: "border-indigo-500/30", bg: "bg-indigo-500/8", points: 100, url: "https://discord.gg/fSvUqwYVSy",    handle: "Earnity Community",  desc: "Join the Discord for strategy channels, guild recruitment, and live drops." },
+  { id: "join-discord", platform: "Discord",      icon: MessageCircle, color: "text-indigo-400", border: "border-indigo-500/30", bg: "bg-indigo-500/8", points: 100, url: "https://discord.gg/fSvUqwYVSy", handle: "Earnity Community",  desc: "Join the Discord for strategy channels, guild recruitment, and live drops." },
 ];
 
 const TWEET_QUESTS = [
@@ -91,7 +91,6 @@ function CountdownAction({ actionId, label, points, openUrl, userId, onAwarded, 
   const award = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not authenticated");
-      // Use the correct RPC name from your supabase setup
       const { data, error } = await supabase.rpc("increment_score", {
         p_user_id: userId,
         p_points: points,
@@ -112,7 +111,6 @@ function CountdownAction({ actionId, label, points, openUrl, userId, onAwarded, 
     },
     onError: (err) => {
       console.error("Award failed:", err);
-      // Still mark as done so user doesn't get stuck, but log it
       localStorage.setItem(key, "1");
       setState("done");
     },
@@ -155,7 +153,6 @@ function CountdownAction({ actionId, label, points, openUrl, userId, onAwarded, 
     );
   }
 
-  // column layout (tweet actions grid)
   if (state === "done") return (
     <div className="flex flex-col items-center gap-1 py-3 bg-green-500/5">
       <CheckCircle2 className="w-4 h-4 text-green-400" />
@@ -290,7 +287,6 @@ export default function Socials() {
       <nav className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/70 backdrop-blur-xl">
         <button onClick={() => setLocation("/")} className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          <img src={BASE + "/Seal2.png"} className="w-6 h-6 object-contain" alt="" />
           <span className="font-bold tracking-tight">EARNITY</span>
         </button>
         <span className="text-sm text-white/30 font-medium uppercase tracking-widest">Socials</span>
