@@ -33,7 +33,7 @@ const ELEMENT_META: Record<string, { text: string; border: string; bg: string; i
 
 const FOLLOW_QUESTS = [
   { id: "follow-x",     platform: "X / Twitter", icon: Twitter,        color: "text-sky-400",    border: "border-sky-500/30",    bg: "bg-sky-500/8",    points: 100, url: "https://x.com/earnity_",          handle: "@earnity_",          desc: "Follow Earnity on X for announcements, alpha leaks, and guild war coverage." },
-  { id: "join-discord", platform: "Discord",      icon: MessageCircle, color: "text-indigo-400", border: "border-indigo-500/30", bg: "bg-indigo-500/8", points: 100, url: "https://discord.gg/FZJvcuKVY",    handle: "Earnity Community",  desc: "Join the Discord for strategy channels, guild recruitment, and live drops." },
+  { id: "join-discord", platform: "Discord",      icon: MessageCircle, color: "text-indigo-400", border: "border-indigo-500/30", bg: "bg-indigo-500/8", points: 100, url: "https://discord.gg/fSvUqwYVSy",    handle: "Earnity Community",  desc: "Join the Discord for strategy channels, guild recruitment, and live drops." },
 ];
 
 const TWEET_QUESTS = [
