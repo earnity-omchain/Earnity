@@ -70,6 +70,7 @@ function AppRouter() {
 
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/drops" component={Drops} />
+      <Route path="/socials" component={Socials} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
