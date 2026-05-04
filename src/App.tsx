@@ -7,14 +7,13 @@ import { Layout } from "@/components/layout";
 import { PublicShell } from "@/components/public-shell";
 import Landing from "@/pages/landing";
 import Merchant from "@/pages/merchant";
+import Socials from "@/pages/socials";
 import Guilds from "@/pages/guilds";
 import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
-import Drops from "@/pages/drops";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
-import Socials from "@/pages/socials";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -69,8 +68,6 @@ function AppRouter() {
       <Route path="/auth/callback" component={AuthCallback} />
 
       <Route path="/leaderboard" component={Leaderboard} />
-      <Route path="/drops" component={Drops} />
-      <Route path="/socials" component={Socials} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
@@ -84,6 +81,7 @@ function AppRouter() {
 
       {/* Protected routes */}
       <Route path="/merchant" component={Merchant} />
+      <Route path="/socials" component={Socials} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
 
       <Route component={NotFound} />
