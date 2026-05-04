@@ -54,7 +54,7 @@ function ClaimedOverlay({ reward, onClose }: { reward: typeof REWARDS[0]; onClos
         onClick={onClose}
         className="mt-6 px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors border border-white/10"
       >
-        Let's go! 🔥
+        Let's go! 
       </motion.button>
     </motion.div>
   );
@@ -149,7 +149,7 @@ export function DailyCheckIn({ userId, onClose, onClaimed }: DailyCheckInProps) 
             </div>
             {streak > 0 && (
               <div className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-full border border-orange-500/20 bg-orange-500/8 w-fit">
-                <span className="text-base">🔥</span>
+                <span className="text-base">💎</span>
                 <span className="text-xs font-semibold text-orange-400">{streak} day streak</span>
               </div>
             )}
