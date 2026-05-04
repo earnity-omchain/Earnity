@@ -14,6 +14,7 @@ import Drops from "@/pages/drops";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
+import Socials from "@/pages/socials";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
