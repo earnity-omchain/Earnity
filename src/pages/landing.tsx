@@ -41,7 +41,7 @@ const ELEMENTS = [
   { id: "wind",      name: "Wind",      img: ASSETS.wind,      text: "text-sky-300",    border: "border-sky-300/40",    bg: "bg-sky-300/10",    ring: "ring-sky-300/30",     glow: "rgba(125,211,252,0.4)" },
 ];
 
-const DEADLINE = new Date("2026-05-10T23:59:59Z");
+const DEADLINE = new Date("2026-05-13T23:59:59Z");
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 function useCountdown(target: Date) {
