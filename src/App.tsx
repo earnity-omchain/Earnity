@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,7 @@ import Socials from "@/pages/socials";
 import Guilds from "@/pages/guilds";
 import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
+import Drops from "@/pages/drops";
 import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
@@ -56,10 +57,22 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   return <PublicShell>{children}</PublicShell>;
 }
 
+// Strip base path for wouter to work correctly with /auth/callback
+function useBasePath() {
+  const [location] = useLocation();
+  const base = import.meta.env.BASE_URL || "/";
+  // If we're at root with no base, return empty string
+  if (base === "/" || base === "./") return "";
+  // Remove trailing slash
+  return base.endsWith("/") ? base.slice(0, -1) : base;
+}
+
 function AppRouter() {
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
+
+  const base = useBasePath();
 
   return (
     <Switch>
@@ -68,6 +81,7 @@ function AppRouter() {
       <Route path="/auth/callback" component={AuthCallback} />
 
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/drops" component={Drops} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
@@ -90,14 +104,12 @@ function AppRouter() {
 }
 
 function App() {
-  const baseUrl = import.meta.env.BASE_URL;
-  const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-
+  // Don't use base prop on WouterRouter — it breaks query param handling on callbacks
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <WouterRouter base={base}>
+          <WouterRouter>
             <AppRouter />
           </WouterRouter>
           <Toaster />
