@@ -8,64 +8,104 @@ export default function AuthCallback() {
   const [, setLocation] = useLocation();
   const ran = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("Completing Discord sign-in…");
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
     const handleAuth = async () => {
-      // Check for OAuth errors first
-      const params = new URLSearchParams(window.location.search);
-      const errorParam = params.get("error");
-      const errorDesc = params.get("error_description");
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const errorParam = url.searchParams.get("error");
+      const errorDesc = url.searchParams.get("error_description");
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const accessToken = hashParams.get("access_token");
+
+      // Handle OAuth errors
       if (errorParam) {
         setError(errorDesc || `Auth error: ${errorParam}`);
-        setTimeout(() => setLocation("/"), 4000);
+        setTimeout(() => setLocation("/"), 3000);
         return;
       }
 
-      // Exchange PKCE code if present
-      const code = params.get("code");
+      let session = null;
+
+      // Try PKCE flow (code in URL query params)
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        setStatus("Exchanging auth code…");
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
-          console.error("Exchange error:", exchangeError.message);
-          setError("Sign-in failed. Please try again.");
-          setTimeout(() => setLocation("/"), 4000);
-          return;
+          // PKCE failed — fall through to check existing session
+          console.warn("PKCE exchange failed:", exchangeError.message);
+        } else {
+          session = data.session;
         }
       }
 
-      // Poll for session — give it up to 10 seconds
-      let session = null;
-      for (let i = 0; i < 50; i++) {
+      // Try implicit flow (token in URL hash)
+      if (!session && accessToken) {
+        setStatus("Processing session…");
         const { data } = await supabase.auth.getSession();
-        if (data.session?.user?.id) {
-          session = data.session;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 200));
+        session = data.session;
+      }
+
+      // Last resort — check if session already exists (e.g. supabase handled it)
+      if (!session) {
+        setStatus("Checking session…");
+        await new Promise(r => setTimeout(r, 800));
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
       }
 
       if (!session) {
-        setError("Session not established. Please try again.");
-        setTimeout(() => setLocation("/"), 4000);
+        setError("Sign-in failed. Please try again.");
+        setTimeout(() => setLocation("/"), 3000);
         return;
       }
 
-      // Poll for profile (DB trigger may be slow)
+      // Route based on profile state
+      setStatus("Loading your profile…");
+      const userId = session.user.id;
       let profile: any = null;
-      for (let i = 0; i < 20; i++) {
+
+      // Retry up to 10 times — trigger may take a moment to create profile
+      for (let i = 0; i < 10; i++) {
         const { data: p } = await supabase
           .from("profiles")
           .select("id, invite_code_used, guild_id, username, wallet_address, element")
-          .eq("id", session.user.id)
+          .eq("id", userId)
           .single();
+
         if (p) { profile = p; break; }
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
       }
 
-      // Route based on profile state — landing handles all phases
+      if (!profile) {
+        // Profile trigger may not have fired yet — go to landing, it'll handle routing
+        setLocation("/");
+        return;
+      }
+
+      // New user — needs invite code
+      if (!profile.invite_code_used) {
+        setLocation("/");
+        return;
+      }
+
+      // Has code but no element/guild chosen yet
+      if (!profile.element && !profile.guild_id) {
+        setLocation("/");
+        return;
+      }
+
+      // Has element but needs username/wallet
+      if (!profile.username || !profile.wallet_address) {
+        setLocation("/connect");
+        return;
+      }
+
+      // Fully onboarded — go to landing (it will redirect to dashboard/leaderboard)
       setLocation("/");
     };
 
@@ -91,7 +131,7 @@ export default function AuthCallback() {
     <div className="min-h-[100dvh] flex items-center justify-center bg-black">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-white/40" />
-        <p className="text-sm text-white/50">Completing Discord sign-in…</p>
+        <p className="text-sm text-white/50">{status}</p>
       </div>
     </div>
   );
