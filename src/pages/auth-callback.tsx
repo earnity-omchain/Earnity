@@ -8,12 +8,11 @@ export default function AuthCallback() {
   const ran = useRef(false);
 
   useEffect(() => {
-    // Guard against double-run in React StrictMode
     if (ran.current) return;
     ran.current = true;
 
     const handleAuth = async () => {
-      // 1. Try PKCE code exchange (if code param present)
+      // ── 1. PKCE: exchange code from query string ───────────────────────
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
       if (code) {
@@ -21,44 +20,42 @@ export default function AuthCallback() {
         if (error) console.error("PKCE exchange error:", error.message);
       }
 
-      // 2. Poll until session is confirmed (up to 6 seconds)
-      for (let i = 0; i < 30; i++) {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user?.id) {
-          // 3. Wait for the DB trigger to create the profile row
-          //    (Supabase triggers are async — give it up to 3s)
-          let profile = null;
-          for (let j = 0; j < 15; j++) {
-            const { data: p } = await supabase
-              .from("profiles")
-              .select("id, invite_code_used, guild_id, username, wallet_address")
-              .eq("id", data.session.user.id)
-              .single();
-            if (p) { profile = p; break; }
-            await new Promise(r => setTimeout(r, 200));
-          }
+      // ── 2. Implicit: tokens in hash — Supabase JS handles automatically
+      // Just give it a moment to process
+      if (window.location.hash?.includes("access_token")) {
+        await new Promise(r => setTimeout(r, 800));
+      }
 
-          // 4. Route to correct step
-          if (!profile || !profile.invite_code_used) {
-            // New user or hasn't entered code yet → landing will show code phase
-            setLocation("/");
-            return;
-          }
-          if (!profile.guild_id) {
-            setLocation("/");
-            return;
-          }
-          if (!profile.username || !profile.wallet_address) {
-            setLocation("/connect");
-            return;
-          }
-          setLocation("/dashboard");
-          return;
-        }
+      // ── 3. Poll for session up to 8 seconds ───────────────────────────
+      let session = null;
+      for (let i = 0; i < 40; i++) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user?.id) { session = data.session; break; }
         await new Promise(r => setTimeout(r, 200));
       }
 
-      // Fallback
+      if (!session) { setLocation("/"); return; }
+
+      // ── 4. Poll for profile row (trigger may be slow) ─────────────────
+      let profile: any = null;
+      for (let j = 0; j < 20; j++) {
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("id, invite_code_used, guild_id, username, wallet_address, element")
+          .eq("id", session.user.id)
+          .single();
+        if (p) { profile = p; break; }
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // ── 5. Route to correct step ──────────────────────────────────────
+      // No profile or no invite code → show code entry on landing
+      if (!profile || !profile.invite_code_used) { setLocation("/"); return; }
+      // Has code but no element/guild → show choice on landing
+      if (!profile.element && !profile.guild_id) { setLocation("/"); return; }
+      // Needs username/wallet → connect flow
+      if (!profile.username || !profile.wallet_address) { setLocation("/connect"); return; }
+      // Fully onboarded → landing will show waiting phase
       setLocation("/");
     };
 
