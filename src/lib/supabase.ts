@@ -6,7 +6,8 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
-    detectSessionInUrl: true,
+    // CRITICAL: Disable auto-detection — we handle it manually in the callback page
+    detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: true,
   },
