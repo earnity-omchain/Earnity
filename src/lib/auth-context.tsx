@@ -40,6 +40,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // ── CRITICAL: If we're on the auth callback page, do NOT call getSession.
+    // getSession triggers Supabase's internal detectSessionInUrl which consumes
+    // the ?code= param and redirects to / before auth-callback.tsx can exchange it.
+    // auth-callback.tsx handles everything on that route itself.
+    const isCallbackPage = window.location.pathname.includes("/auth/callback");
+
+    if (isCallbackPage) {
+      // Just listen for the SIGNED_IN event that auth-callback will trigger
+      setIsInitializing(false);
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+        setSession(s);
+        if (s?.user?.id) loadProfile(s.user.id);
+        else { setProfile(null); queryClient.clear(); }
+      });
+      return () => listener.subscription.unsubscribe();
+    }
+
+    // Normal pages — get existing session from storage
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       if (data.session?.user?.id) {
