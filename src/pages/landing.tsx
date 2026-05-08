@@ -512,7 +512,7 @@ export default function Landing() {
                   className="w-full h-13 gap-2 text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 text-white backdrop-blur-md">
                   <LogIn className="w-4 h-4" />Sign in with Discord
                 </Button>
-                <p className="mt-5 text-xs text-white/30">50 access codes only. Discord required.</p>
+                <p className="mt-5 text-xs text-white/30">Discord required.</p>
               </motion.div>
             </motion.div>
           )}
