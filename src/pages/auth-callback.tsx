@@ -13,47 +13,47 @@ export default function AuthCallback() {
     if (ran.current) return;
     ran.current = true;
 
-    const handleAuth = async () => {
-  const params = new URLSearchParams(window.location.search);
-  const errorParam = params.get("error");
-  const errorDesc = params.get("error_description");
-  if (errorParam) {
-    setError(errorDesc || `Auth error: ${errorParam}`);
-    setTimeout(() => setLocation("/"), 4000);
-    return;
-  }
+    // Check for OAuth errors in query params
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    const errorDesc = params.get("error_description");
+    if (errorParam) {
+      setError(errorDesc || `Auth error: ${errorParam}`);
+      setTimeout(() => setLocation("/"), 4000);
+      return;
+    }
 
-  // With implicit flow, Supabase auto-processes the #hash — just poll for session
-  let session = null;
-  for (let i = 0; i < 50; i++) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user?.id) { session = data.session; break; }
-    await new Promise(r => setTimeout(r, 200));
-  }
+    // With implicit flow, Supabase fires SIGNED_IN once it processes the #hash
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user?.id) {
+        listener.subscription.unsubscribe();
 
-  if (!session) {
-    setError("Session not established. Please try again.");
-    setTimeout(() => setLocation("/"), 4000);
-    return;
-  }
+        // Poll for profile (DB trigger may be slow)
+        for (let i = 0; i < 20; i++) {
+          const { data: p } = await supabase
+            .from("profiles")
+            .select("id, invite_code_used, guild_id, username, wallet_address, element")
+            .eq("id", session.user.id)
+            .single();
+          if (p) break;
+          await new Promise(r => setTimeout(r, 300));
+        }
 
-      // Poll for profile (DB trigger may be slow)
-      let profile: any = null;
-      for (let i = 0; i < 20; i++) {
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("id, invite_code_used, guild_id, username, wallet_address, element")
-          .eq("id", session.user.id)
-          .single();
-        if (p) { profile = p; break; }
-        await new Promise(r => setTimeout(r, 300));
+        setLocation("/");
       }
+    });
 
-      // Route based on profile state — landing handles all phases
-      setLocation("/");
+    // Timeout fallback — if SIGNED_IN never fires after 15s
+    const timeout = setTimeout(() => {
+      listener.subscription.unsubscribe();
+      setError("Session not established. Please try again.");
+      setTimeout(() => setLocation("/"), 4000);
+    }, 15000);
+
+    return () => {
+      clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
-
-    handleAuth();
   }, [setLocation]);
 
   if (error) {
