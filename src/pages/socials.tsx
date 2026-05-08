@@ -40,6 +40,7 @@ const TWEET_QUESTS = [
   { id: "tweet-1", tweetId: "2049489255022375413", url: "https://x.com/i/status/2049489255022375413", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
   { id: "tweet-2", tweetId: "2048723259009462774", url: "https://x.com/i/status/2048723259009462774", actions: [{ id: "t2-like", label: "Like", points: 25 }, { id: "t2-comment", label: "Comment", points: 50 }, { id: "t2-retweet", label: "Retweet", points: 25 }] },
   { id: "tweet-3", tweetId: "2046358679272706428", url: "https://x.com/i/status/2046358679272706428", actions: [{ id: "t3-like", label: "Like", points: 25 }, { id: "t3-comment", label: "Comment", points: 50 }, { id: "t3-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-4", tweetId: "2052693406078443692", url: "https://x.com/i/status/2052693406078443692", actions: [{ id: "t4-like", label: "Like", points: 25 }, { id: "t3-comment", label: "Comment", points: 50 }, { id: "t4-retweet", label: "Retweet", points: 25 }] },
 ];
 
 const CD_SECS = 60;
