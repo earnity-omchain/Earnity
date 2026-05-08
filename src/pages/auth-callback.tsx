@@ -13,48 +13,30 @@ export default function AuthCallback() {
     if (ran.current) return;
     ran.current = true;
 
-    // Check for OAuth errors in query params
-    const code = new URLSearchParams(window.location.search).get("code");
-if (code) {
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    setError("Sign-in failed. Please try again.");
-    setTimeout(() => setLocation("/"), 4000);
-    return;
-  }
-}
-setLocation("/");
+    const handleAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const errorParam = params.get("error");
+      const errorDesc = params.get("error_description");
+      if (errorParam) {
+        setError(errorDesc || `Auth error: ${errorParam}`);
+        setTimeout(() => setLocation("/"), 4000);
+        return;
+      }
 
-    // With implicit flow, Supabase fires SIGNED_IN once it processes the #hash
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log("Auth event:", event, "Session:", session?.user?.id);
-  if (event === "SIGNED_IN" && session?.user?.id) {
-    listener.subscription.unsubscribe();
-    clearTimeout(timeout);
-    setLocation("/");
-  }
-});
+      const code = params.get("code");
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError("Sign-in failed. Please try again.");
+          setTimeout(() => setLocation("/"), 4000);
+          return;
+        }
+      }
 
-// Also log what getSession returns immediately
-supabase.auth.getSession().then(({ data }) => {
-  console.log("Initial getSession:", data.session?.user?.id);
-  if (data.session?.user?.id) {
-    clearTimeout(timeout);
-    setLocation("/");
-  }
-});
-
-    // Timeout fallback — if SIGNED_IN never fires after 15s
-    const timeout = setTimeout(() => {
-      listener.subscription.unsubscribe();
-      setError("Session not established. Please try again.");
-      setTimeout(() => setLocation("/"), 4000);
-    }, 15000);
-
-    return () => {
-      clearTimeout(timeout);
-      listener.subscription.unsubscribe();
+      setLocation("/");
     };
+
+    handleAuth();
   }, [setLocation]);
 
   if (error) {
