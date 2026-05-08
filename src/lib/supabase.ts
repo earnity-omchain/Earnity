@@ -5,10 +5,11 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    flowType: "implicit",
-    detectSessionInUrl: true,
+    flowType: "pkce",
+    detectSessionInUrl: true,   // Let Supabase process the code param automatically
     persistSession: true,
     autoRefreshToken: true,
+    storageKey: "earnity-auth", // Unique key avoids conflicts with other tabs/apps
   },
 });
 
@@ -266,8 +267,6 @@ export const api = {
     return data;
   },
 
-  // ── Contributions ────────────────────────────────────────────────────────────
-
   createContribution: async (userId: string): Promise<RecentContribution> => {
     const { data, error } = await supabase.rpc("contribute", {
       p_user_id: userId,
@@ -285,8 +284,6 @@ export const api = {
     if (error) throw error;
     return data ?? [];
   },
-
-  // ── Leaderboard ──────────────────────────────────────────────────────────────
 
   getGuildLeaderboard: async (): Promise<LeaderboardEntry[]> => {
     const { data, error } = await supabase
@@ -324,22 +321,17 @@ export const api = {
     if (!data || data.length === 0) return [];
 
     const ids = data.map(p => p.id);
-
     const guildIds = [...new Set(data.map(p => p.guild_id).filter(Boolean))];
     let guildMap: Record<string, { id: string; name: string }> = {};
     if (guildIds.length > 0) {
       const { data: guildsData } = await supabase
-        .from("guilds")
-        .select("id, name")
-        .in("id", guildIds as string[]);
+        .from("guilds").select("id, name").in("id", guildIds as string[]);
       (guildsData ?? []).forEach((g: any) => { guildMap[g.id] = g; });
     }
 
     const { data: refData } = await supabase
-      .from("invite_codes")
-      .select("created_by")
-      .in("created_by", ids)
-      .not("used_by", "is", null);
+      .from("invite_codes").select("created_by")
+      .in("created_by", ids).not("used_by", "is", null);
     const refCounts: Record<string, number> = {};
     (refData ?? []).forEach((r: any) => { refCounts[r.created_by] = (refCounts[r.created_by] || 0) + 1; });
 
