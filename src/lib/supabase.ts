@@ -4,10 +4,11 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 // supabase.ts
+// supabase.ts
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    flowType: "pkce",
-    detectSessionInUrl: window.location.pathname.includes("/auth/callback"), // ← only true on callback
+    flowType: "implicit",   // ← change from "pkce"
+    detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
     storageKey: "earnity-auth",
