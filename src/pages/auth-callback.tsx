@@ -11,16 +11,35 @@ export default function AuthCallback() {
   const [status, setStatus] = useState("Completing Discord sign-in…");
 
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
+  if (ran.current) return;
+  ran.current = true;
 
-    const handleAuth = async () => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      const errorParam = url.searchParams.get("error");
-      const errorDesc = url.searchParams.get("error_description");
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
-      const accessToken = hashParams.get("access_token");
+  const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === "SIGNED_IN" && session) {
+      const userId = session.user.id;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("invite_code_used, guild_id, username, wallet_address, element")
+        .eq("id", userId)
+        .single();
+
+      if (!profile?.invite_code_used) { setLocation("/"); return; }
+      if (!profile.element && !profile.guild_id) { setLocation("/"); return; }
+      if (!profile.username || !profile.wallet_address) { setLocation("/connect"); return; }
+      setLocation("/");
+    }
+    if (event === "SIGNED_OUT") setLocation("/");
+  });
+
+  // Timeout fallback
+  setTimeout(() => {
+    listener.subscription.unsubscribe();
+    setError("Sign-in timed out. Please try again.");
+    setTimeout(() => setLocation("/"), 3000);
+  }, 15000);
+
+  return () => listener.subscription.unsubscribe();
+}, [setLocation]);
 
       // Handle OAuth errors
       if (errorParam) {
