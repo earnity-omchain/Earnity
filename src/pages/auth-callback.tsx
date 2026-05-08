@@ -30,18 +30,14 @@ export default function AuthCallback() {
       }
 
       let session = null;
-
-      // Try PKCE flow (code in URL query params)
-      if (code) {
-        setStatus("Exchanging auth code…");
-        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          // PKCE failed — fall through to check existing session
-          console.warn("PKCE exchange failed:", exchangeError.message);
-        } else {
-          session = data.session;
-        }
-      }
+for (let i = 0; i < 10; i++) {
+  await new Promise(r => setTimeout(r, 600));
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    session = data.session;
+    break;
+  }
+}
 
       // Try implicit flow (token in URL hash)
       if (!session && accessToken) {
