@@ -27,10 +27,34 @@ export default function AuthCallback() {
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
+          console.error("Exchange error:", exchangeError.message);
           setError("Sign-in failed. Please try again.");
           setTimeout(() => setLocation("/"), 4000);
           return;
         }
+      }
+
+      let session = null;
+      for (let i = 0; i < 50; i++) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user?.id) { session = data.session; break; }
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      if (!session) {
+        setError("Session not established. Please try again.");
+        setTimeout(() => setLocation("/"), 4000);
+        return;
+      }
+
+      for (let i = 0; i < 20; i++) {
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("id, invite_code_used, guild_id, username, wallet_address, element")
+          .eq("id", session.user.id)
+          .single();
+        if (p) break;
+        await new Promise(r => setTimeout(r, 300));
       }
 
       setLocation("/");
