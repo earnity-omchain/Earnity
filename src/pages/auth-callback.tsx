@@ -8,129 +8,83 @@ export default function AuthCallback() {
   const [, setLocation] = useLocation();
   const ran = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState("Completing Discord sign-in…");
 
   useEffect(() => {
-  if (ran.current) return;
-  ran.current = true;
+    if (ran.current) return;
+    ran.current = true;
 
-  const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === "SIGNED_IN" && session) {
-      const userId = session.user.id;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("invite_code_used, guild_id, username, wallet_address, element")
-        .eq("id", userId)
-        .single();
-
-      if (!profile?.invite_code_used) { setLocation("/"); return; }
-      if (!profile.element && !profile.guild_id) { setLocation("/"); return; }
-      if (!profile.username || !profile.wallet_address) { setLocation("/connect"); return; }
-      setLocation("/");
+    // Check for OAuth error in URL
+    const url = new URL(window.location.href);
+    const errorParam = url.searchParams.get("error");
+    const errorDesc = url.searchParams.get("error_description");
+    if (errorParam) {
+      setError(errorDesc || `Auth error: ${errorParam}`);
+      setTimeout(() => setLocation("/"), 3000);
+      return;
     }
-    if (event === "SIGNED_OUT") setLocation("/");
-  });
 
-  // Timeout fallback
-  setTimeout(() => {
-    listener.subscription.unsubscribe();
-    setError("Sign-in timed out. Please try again.");
-    setTimeout(() => setLocation("/"), 3000);
-  }, 15000);
+    // Listen for sign-in event — implicit flow puts token in hash,
+    // Supabase detects it automatically when detectSessionInUrl: true
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        const userId = session.user.id;
 
-  return () => listener.subscription.unsubscribe();
-}, [setLocation]);
+        // Wait for profile trigger to fire
+        let profile: any = null;
+        for (let i = 0; i < 10; i++) {
+          const { data: p } = await supabase
+            .from("profiles")
+            .select("invite_code_used, guild_id, username, wallet_address, element")
+            .eq("id", userId)
+            .single();
+          if (p) { profile = p; break; }
+          await new Promise(r => setTimeout(r, 500));
+        }
 
-      // Handle OAuth errors
-      if (errorParam) {
-        setError(errorDesc || `Auth error: ${errorParam}`);
-        setTimeout(() => setLocation("/"), 3000);
-        return;
-      }
+        listener.subscription.unsubscribe();
 
-      let session = null;
-for (let i = 0; i < 10; i++) {
-  await new Promise(r => setTimeout(r, 600));
-  const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    session = data.session;
-    break;
-  }
-}
-
-      // Try implicit flow (token in URL hash)
-      if (!session && accessToken) {
-        setStatus("Processing session…");
-        const { data } = await supabase.auth.getSession();
-        session = data.session;
-      }
-
-      // Last resort — check if session already exists (e.g. supabase handled it)
-      if (!session) {
-        setStatus("Checking session…");
-        await new Promise(r => setTimeout(r, 800));
-        const { data } = await supabase.auth.getSession();
-        session = data.session;
-      }
-
-      if (!session) {
-        setError("Sign-in failed. Please try again.");
-        setTimeout(() => setLocation("/"), 3000);
-        return;
-      }
-
-      // Route based on profile state
-      setStatus("Loading your profile…");
-      const userId = session.user.id;
-      let profile: any = null;
-
-      // Retry up to 10 times — trigger may take a moment to create profile
-      for (let i = 0; i < 10; i++) {
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("id, invite_code_used, guild_id, username, wallet_address, element")
-          .eq("id", userId)
-          .single();
-
-        if (p) { profile = p; break; }
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      if (!profile) {
-        // Profile trigger may not have fired yet — go to landing, it'll handle routing
+        if (!profile || !profile.invite_code_used) {
+          setLocation("/");
+          return;
+        }
+        if (!profile.element && !profile.guild_id) {
+          setLocation("/");
+          return;
+        }
+        if (!profile.username || !profile.wallet_address) {
+          setLocation("/connect");
+          return;
+        }
         setLocation("/");
-        return;
       }
 
-      // New user — needs invite code
-      if (!profile.invite_code_used) {
+      if (event === "SIGNED_OUT") {
+        listener.subscription.unsubscribe();
         setLocation("/");
-        return;
       }
+    });
 
-      // Has code but no element/guild chosen yet
-      if (!profile.element && !profile.guild_id) {
-        setLocation("/");
-        return;
-      }
+    // 15 second timeout fallback
+    const timeout = setTimeout(() => {
+      listener.subscription.unsubscribe();
+      setError("Sign-in timed out. Please try again.");
+      setTimeout(() => setLocation("/"), 3000);
+    }, 15000);
 
-      // Has element but needs username/wallet
-      if (!profile.username || !profile.wallet_address) {
-        setLocation("/connect");
-        return;
-      }
-
-      // Fully onboarded — go to landing (it will redirect to dashboard/leaderboard)
-      setLocation("/");
+    return () => {
+      clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
-
-    handleAuth();
   }, [setLocation]);
 
   if (error) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-black px-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-sm"
+        >
           <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
@@ -146,7 +100,7 @@ for (let i = 0; i < 10; i++) {
     <div className="min-h-[100dvh] flex items-center justify-center bg-black">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-white/40" />
-        <p className="text-sm text-white/50">{status}</p>
+        <p className="text-sm text-white/50">Completing Discord sign-in…</p>
       </div>
     </div>
   );
