@@ -14,14 +14,16 @@ export default function AuthCallback() {
     ran.current = true;
 
     // Check for OAuth errors in query params
-    const params = new URLSearchParams(window.location.search);
-    const errorParam = params.get("error");
-    const errorDesc = params.get("error_description");
-    if (errorParam) {
-      setError(errorDesc || `Auth error: ${errorParam}`);
-      setTimeout(() => setLocation("/"), 4000);
-      return;
-    }
+    const code = new URLSearchParams(window.location.search).get("code");
+if (code) {
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    setError("Sign-in failed. Please try again.");
+    setTimeout(() => setLocation("/"), 4000);
+    return;
+  }
+}
+setLocation("/");
 
     // With implicit flow, Supabase fires SIGNED_IN once it processes the #hash
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
