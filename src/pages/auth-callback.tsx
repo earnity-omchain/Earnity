@@ -25,23 +25,22 @@ export default function AuthCallback() {
 
     // With implicit flow, Supabase fires SIGNED_IN once it processes the #hash
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user?.id) {
-        listener.subscription.unsubscribe();
+  console.log("Auth event:", event, "Session:", session?.user?.id);
+  if (event === "SIGNED_IN" && session?.user?.id) {
+    listener.subscription.unsubscribe();
+    clearTimeout(timeout);
+    setLocation("/");
+  }
+});
 
-        // Poll for profile (DB trigger may be slow)
-        for (let i = 0; i < 20; i++) {
-          const { data: p } = await supabase
-            .from("profiles")
-            .select("id, invite_code_used, guild_id, username, wallet_address, element")
-            .eq("id", session.user.id)
-            .single();
-          if (p) break;
-          await new Promise(r => setTimeout(r, 300));
-        }
-
-        setLocation("/");
-      }
-    });
+// Also log what getSession returns immediately
+supabase.auth.getSession().then(({ data }) => {
+  console.log("Initial getSession:", data.session?.user?.id);
+  if (data.session?.user?.id) {
+    clearTimeout(timeout);
+    setLocation("/");
+  }
+});
 
     // Timeout fallback — if SIGNED_IN never fires after 15s
     const timeout = setTimeout(() => {
