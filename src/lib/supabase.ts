@@ -5,8 +5,8 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    flowType: "implicit",   // ← change from "pkce"
-    detectSessionInUrl: true,
+    flowType: "pkce",
+    detectSessionInUrl: false,  // ← critical, must be false
     persistSession: true,
     autoRefreshToken: true,
     storageKey: "earnity-auth",
