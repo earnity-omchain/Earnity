@@ -14,44 +14,28 @@ export default function AuthCallback() {
     ran.current = true;
 
     const handleAuth = async () => {
-      // Check for OAuth errors first
-      const params = new URLSearchParams(window.location.search);
-      const errorParam = params.get("error");
-      const errorDesc = params.get("error_description");
-      if (errorParam) {
-        setError(errorDesc || `Auth error: ${errorParam}`);
-        setTimeout(() => setLocation("/"), 4000);
-        return;
-      }
+  const params = new URLSearchParams(window.location.search);
+  const errorParam = params.get("error");
+  const errorDesc = params.get("error_description");
+  if (errorParam) {
+    setError(errorDesc || `Auth error: ${errorParam}`);
+    setTimeout(() => setLocation("/"), 4000);
+    return;
+  }
 
-      // Exchange PKCE code if present
-      const code = params.get("code");
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          console.error("Exchange error:", exchangeError.message);
-          setError("Sign-in failed. Please try again.");
-          setTimeout(() => setLocation("/"), 4000);
-          return;
-        }
-      }
+  // With implicit flow, Supabase auto-processes the #hash — just poll for session
+  let session = null;
+  for (let i = 0; i < 50; i++) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user?.id) { session = data.session; break; }
+    await new Promise(r => setTimeout(r, 200));
+  }
 
-      // Poll for session — give it up to 10 seconds
-      let session = null;
-      for (let i = 0; i < 50; i++) {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user?.id) {
-          session = data.session;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 200));
-      }
-
-      if (!session) {
-        setError("Session not established. Please try again.");
-        setTimeout(() => setLocation("/"), 4000);
-        return;
-      }
+  if (!session) {
+    setError("Session not established. Please try again.");
+    setTimeout(() => setLocation("/"), 4000);
+    return;
+  }
 
       // Poll for profile (DB trigger may be slow)
       let profile: any = null;
