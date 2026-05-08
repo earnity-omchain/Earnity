@@ -3,13 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+// supabase.ts
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
-    detectSessionInUrl: true,   // Let Supabase process the code param automatically
+    detectSessionInUrl: window.location.pathname.includes("/auth/callback"), // ← only true on callback
     persistSession: true,
     autoRefreshToken: true,
-    storageKey: "earnity-auth", // Unique key avoids conflicts with other tabs/apps
+    storageKey: "earnity-auth",
   },
 });
 
