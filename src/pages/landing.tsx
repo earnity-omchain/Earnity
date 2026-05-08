@@ -747,7 +747,7 @@ export default function Landing() {
                 <div className="flex items-center gap-1 sm:gap-2">
                   {[
                     { label: "Rank",     soon: false, onClick: () => setLocation("/leaderboard") },
-                    { label: "Forge",    soon: false, onClick: () => setLocation("/drops") },
+                    { label: "Forge",    soon: false, onClick: () => setLocation("/forge") },
                     { label: "Merchant", soon: false, onClick: () => setLocation("/merchant") },
                     { label: "Socials",  soon: false, onClick: () => setLocation("/socials") },
                   ].map(({ label, soon, onClick }) => (
