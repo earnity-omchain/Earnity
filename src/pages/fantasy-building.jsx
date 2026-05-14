@@ -1,4 +1,13 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api, queryKeys, supabase } from "@/lib/supabase";
+import { useLocation } from "wouter";
+import { useAuth } from "@/lib/auth-context";
+import { useRef, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft, ChevronDown, Copy, Check,
+  Shield, Swords, Zap, Star, Trophy, Crown,
+} from "lucide-react";
 
 const buildings = [
   {
