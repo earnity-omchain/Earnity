@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Merchant from "@/pages/merchant";
 import Socials from "@/pages/socials";
 import Guilds from "@/pages/guilds";
+import FantasyBuildings from "@/pages/fantasy-building";
 import GuildDetail from "@/pages/guild-detail";
 import Leaderboard from "@/pages/leaderboard";
 import Forge from "@/pages/forge";
@@ -77,6 +78,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/fantasy" component={FantasyBuildings} />
       <Route path="/connect" component={Connect} />
       <Route path="/auth/callback" component={AuthCallback} />
 
