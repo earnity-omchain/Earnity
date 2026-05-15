@@ -260,7 +260,7 @@ export async function useDefenseItem(
   userId: string,
   guildId: string,
   itemType: string
-): Promise<<{
+): Promise<{
   success: boolean;
   message: string;
   expiresAt?: Date;
@@ -370,7 +370,7 @@ export async function useMPPotion(userId: string): Promise<{
 export async function craftElemental(
   userId: string,
   element: string
-): Promise<<{
+): Promise<{
   success: boolean;
   message: string;
 }> {
