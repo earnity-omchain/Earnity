@@ -151,7 +151,7 @@ export async function attackGuild(
   attackerId: string,
   targetGuildId: string,
   itemType: string
-): Promise<<{
+): Promise<{
   success: boolean;
   effectValue: number;
   message: string;
@@ -336,7 +336,7 @@ export async function useDefenseItem(
   return { success: true, message: `${meta.label} activated!`, expiresAt };
 }
 
-export async function useMPPotion(userId: string): Promise<<{
+export async function useMPPotion(userId: string): Promise<{
   success: boolean;
   message: string;
 }> {
@@ -409,7 +409,7 @@ export async function craftElemental(
 }
 
 export async function getGuildsWithRanking(): Promise<
-  Array<<{
+  Array<{
     id: string;
     name: string;
     element: string;
@@ -446,7 +446,7 @@ export async function getGuildsWithRanking(): Promise<
 }
 
 export async function getAttackLog(limit = 50): Promise<
-  Array<<GuildAttack & { attacker_name: string; target_name: string }>
+  Array<GuildAttack & { attacker_name: string; target_name: string }>
 > {
   const { data, error } = await supabase
     .from("guild_attacks")
@@ -465,7 +465,7 @@ export async function getAttackLog(limit = 50): Promise<
   }));
 }
 
-export async function getGuildCooldowns(guildId: string): Promise<<GuildCooldown[]> {
+export async function getGuildCooldowns(guildId: string): Promise<GuildCooldown[]> {
   const { data, error } = await supabase
     .from("guild_item_cooldowns")
     .select("*")
