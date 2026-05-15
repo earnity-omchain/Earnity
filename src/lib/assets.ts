@@ -1,71 +1,64 @@
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
 const GAME = `${CDN}/Game%20assets`;
 const GUILDS = `${CDN}/Guilds`;
+const ITEMS = `${CDN}/Items`;
 
-// ── Game assets ───────────────────────────────────────────────────────────────
 export const GAME_ASSETS = {
-  // Backgrounds
   background1: `${GAME}/background-1.png`,
   background2: `${GAME}/background-2.png`,
-
-  // Seals
   seal1: `${GAME}/Seal1.png`,
   seal2: `${GAME}/Seal2.png`,
-
-  // Elementals
-  fire:      `${GAME}/Fire.png`,
-  water:     `${GAME}/Water.png`,
-  nature:    `${GAME}/Nature.png`,
-  rock:      `${GAME}/Rock.png`,
+  fire: `${GAME}/Fire.png`,
+  water: `${GAME}/Water.png`,
+  nature: `${GAME}/Nature.png`,
+  rock: `${GAME}/Rock.png`,
   lightning: `${GAME}/Lightning.png`,
-  wind:      `${GAME}/Wind.png`,
-
-  // Elemental shards
-  shardFire:      `${GAME}/fire-shard.png`,
-  shardWater:     `${GAME}/water-shard.png`,
-  shardNature:    `${GAME}/nature-shard.png`,
-  shardRock:      `${GAME}/rock-shard.png`,
+  wind: `${GAME}/Wind.png`,
+  shardFire: `${GAME}/fire-shard.png`,
+  shardWater: `${GAME}/water-shard.png`,
+  shardNature: `${GAME}/nature-shard.png`,
+  shardRock: `${GAME}/rock-shard.png`,
   shardLightning: `${GAME}/lightning-shard.png`,
-  shardWind:      `${GAME}/wind-shard.png`,
-
-  // Mystery & item boxes
+  shardWind: `${GAME}/wind-shard.png`,
   mysteryboxClosed: `${GAME}/mysterybox-closed.png`,
   mysteryboxOpened: `${GAME}/mysterybox-opened.png`,
-  itemboxClosed:    `${GAME}/itembox-closed.png`,
-  itemboxOpened:    `${GAME}/itembox-opened.png`,
-
-  // Coins
-  coin:      `${GAME}/coin.png`,
-  coins200:  `${GAME}/200-coins.png`,
+  itemboxClosed: `${GAME}/itembox-closed.png`,
+  itemboxOpened: `${GAME}/itembox-opened.png`,
+  coin: `${GAME}/coin.png`,
+  coins200: `${GAME}/200-coins.png`,
   coins1000: `${GAME}/1000-coins.png`,
+  nuke: `${ITEMS}/Nuke.png`,
+  drain: `${ITEMS}/Drain.png`,
+  rug: `${ITEMS}/RUG.png`,
+  shield: `${ITEMS}/Shield.png`,
+  hpPotion: `${ITEMS}/HP.png`,
+  mpPotion: `${ITEMS}/MP.png`,
 } as const;
 
-// ── Guild images ──────────────────────────────────────────────────────────────
 export const GUILD_IMAGES: Record<string, string> = {
-  "Emberborn":    `${GUILDS}/Emberborn.png`,
-  "Junsun工会":   `${GUILDS}/Junsun.png`,
-  "The Matrix":   `${GUILDS}/The%20Matrix.png`,
-  "Salvatrucha":  `${GUILDS}/Salvatrucha.png`,
-  "致富web3":     `${GUILDS}/Web3.png`,
+  "Emberborn": `${GUILDS}/Emberborn.png`,
+  "Junsun工会": `${GUILDS}/Junsun.png`,
+  "The Matrix": `${GUILDS}/The%20Matrix.png`,
+  "Salvatrucha": `${GUILDS}/Salvatrucha.png`,
+  "致富web3": `${GUILDS}/Web3.png`,
   "Firethernity": `${GUILDS}/Firethernity.png`,
-  "Dajjal":       `${GUILDS}/Dajjal.png`,
-  "V.A.N.E":      `${GUILDS}/V.A.N.E.png`,
-  "闪电":         `${GUILDS}/Lightning_.png`,
-  "jhembut":      `${GUILDS}/jhembut.png`,
-  "趋势":         `${GUILDS}/Trend.png`,
-  "SeaWay":       `${GUILDS}/SeaWay.png`,
-  "meigui":       `${GUILDS}/meigui.png`,
-  "Insiders":     `${GUILDS}/Insiders.png`,
-  "bao":          `${GUILDS}/bao.png`,
-  "Enel":         `${GUILDS}/Enel.png`,
-  "Hubchainify":  `${GUILDS}/Hubchainify.png`,
-  "Hunters":      `${GUILDS}/Hunters.png`,
-  "Adorable":     `${GUILDS}/Adorable.png`,
-  "Nomads":       `${GUILDS}/Nomads.png`,
+  "Dajjal": `${GUILDS}/Dajjal.png`,
+  "V.A.N.E": `${GUILDS}/V.A.N.E.png`,
+  "闪电": `${GUILDS}/Lightning_.png`,
+  "jhembut": `${GUILDS}/jhembut.png`,
+  "趋势": `${GUILDS}/Trend.png`,
+  "SeaWay": `${GUILDS}/SeaWay.png`,
+  "meigui": `${GUILDS}/meigui.png`,
+  "Insiders": `${GUILDS}/Insiders.png`,
+  "bao": `${GUILDS}/bao.png`,
+  "Enel": `${GUILDS}/Enel.png`,
+  "Hubchainify": `${GUILDS}/Hubchainify.png`,
+  "Hunters": `${GUILDS}/Hunters.png`,
+  "Adorable": `${GUILDS}/Adorable.png`,
+  "Nomads": `${GUILDS}/Nomads.png`,
   "Bestas Feras": `${GUILDS}/Bestas%20Feras.png`,
 };
 
-// ── Element metadata ──────────────────────────────────────────────────────────
 export const ELEMENT_META: Record<string, {
   label: string;
   text: string;
@@ -111,7 +104,6 @@ export const ELEMENT_META: Record<string, {
     img: GAME_ASSETS.rock,
     shard: GAME_ASSETS.shardRock,
   },
-  // Both "lighting" and "lightning" keys — handles legacy data
   lighting: {
     label: "Lightning",
     text: "text-yellow-400",
@@ -141,10 +133,8 @@ export const ELEMENT_META: Record<string, {
   },
 };
 
-// ── Logo (served from Cloudflare Pages public/) ───────────────────────────────
 export const LOGO = import.meta.env.BASE_URL + "logo.jpg";
 
-// ── Helper: get guild image with fallback to element image ────────────────────
 export function getGuildImage(guildName: string, element?: string): string {
   if (GUILD_IMAGES[guildName]) return GUILD_IMAGES[guildName];
   if (element && ELEMENT_META[element]) return ELEMENT_META[element].img;
