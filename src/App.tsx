@@ -17,6 +17,9 @@ import Connect from "@/pages/connect";
 import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
+import Battlefield from "@/pages/battlefield";
+import ChestOpener from "@/components/chest-opener";
+import ElementalCraft from "@/components/elemental-craft";
 import { useEffect } from "react";
 
 const queryClient = new QueryClient({
@@ -58,13 +61,10 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   return <PublicShell>{children}</PublicShell>;
 }
 
-// Strip base path for wouter to work correctly with /auth/callback
 function useBasePath() {
   const [location] = useLocation();
   const base = import.meta.env.BASE_URL || "/";
-  // If we're at root with no base, return empty string
   if (base === "/" || base === "./") return "";
-  // Remove trailing slash
   return base.endsWith("/") ? base.slice(0, -1) : base;
 }
 
@@ -84,6 +84,7 @@ function AppRouter() {
 
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/forge" component={Forge} />
+      <Route path="/battlefield" component={Battlefield} />
 
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
@@ -95,7 +96,6 @@ function AppRouter() {
         )}
       </Route>
 
-      {/* Protected routes */}
       <Route path="/merchant" component={Merchant} />
       <Route path="/socials" component={Socials} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
@@ -106,7 +106,6 @@ function AppRouter() {
 }
 
 function App() {
-  // Don't use base prop on WouterRouter — it breaks query param handling on callbacks
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -114,6 +113,8 @@ function App() {
           <WouterRouter>
             <AppRouter />
           </WouterRouter>
+          <ChestOpener />
+          <ElementalCraft />
           <Toaster />
         </AuthProvider>
       </TooltipProvider>
