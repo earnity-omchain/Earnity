@@ -58,7 +58,7 @@ export async function useUserMP(userId: string, cost: number): Promise<boolean> 
   return data;
 }
 
-export async function getInventory(userId: string): Promise<<InventoryItem[]> {
+export async function getInventory(userId: string): Promise<InventoryItem[]> {
   const { data, error } = await supabase
     .from("inventories")
     .select("*")
