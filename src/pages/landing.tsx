@@ -730,134 +730,19 @@ export default function Landing() {
           )}
 
           {/* ── WAITING ──────────────────────────────────────────────────────── */}
-          {phase === "waiting" && (
-            <motion.div key="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex flex-col text-white"
-              style={{ backgroundImage: `url(${ASSETS.background2})`, backgroundSize: "cover", backgroundPosition: "center" }}>
-              <div className="absolute inset-0 bg-black/70" />
-
-              {/* Nav */}
-              <nav className="relative z-[60] flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md flex-shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
-                    <img src={ASSETS.logo} className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-sm font-bold tracking-tight hidden sm:block">EARNITY</span>
-                </div>
-
-                <div className="flex items-center gap-1 sm:gap-2">
-                  {[
-                    { label: "Rank",     soon: false, onClick: () => setLocation("/leaderboard") },
-                    { label: "Forge",    soon: false, onClick: () => setLocation("/forge") },
-                    { label: "Merchant", soon: false, onClick: () => setLocation("/merchant") },
-                    { label: "Socials",  soon: false, onClick: () => setLocation("/socials") },
-                  ].map(({ label, soon, onClick }) => (
-                    <button key={label} onClick={onClick} disabled={soon}
-                      className={`relative px-3 sm:px-4 py-1.5 rounded-lg text-sm transition-colors ${soon ? "text-white/25 cursor-not-allowed" : "text-white/60 hover:text-white hover:bg-white/8"}`}>
-                      {label}
-                      {soon && <span className="absolute -top-1.5 -right-1 text-[8px] uppercase bg-white/10 text-white/35 px-1 rounded-full">soon</span>}
-                    </button>
-                  ))}
-                </div>
-
-                {session && (
-                  <ProfileMenu
-                    full={fullProfile}
-                    profile={profile}
-                    referralCodes={referralCodes ?? []}
-                    checkInStatus={checkInStatus}
-                    signOut={handleSignOut}
-                  />
-                )}
-              </nav>
-
-              {/* Hero content */}
-              <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-                {(() => {
-                  const el = fullProfile?.element ? ELEMENTS.find(e => e.id === fullProfile.element) : null;
-                  return (
-                    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring", damping: 22 }} className="w-full max-w-md">
-                      {/* Seal */}
-                      <div className="relative w-36 h-36 mx-auto mb-10">
-                        {el && <div className={`absolute inset-0 rounded-full blur-3xl opacity-50 ${el.bg}`} />}
-                        <motion.img src={ASSETS.seal} animate={{ scale: [1, 1.04, 1] }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_50px_rgba(255,255,255,0.08)]" />
-                        {el && (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: "spring" }}
-                            className={`absolute -bottom-1 -right-1 w-11 h-11 rounded-full border-2 ${el.border} ${el.bg} backdrop-blur-md flex items-center justify-center z-20`}>
-                            <img src={el.img} className="w-6 h-6 object-contain" />
-                          </motion.div>
-                        )}
-                      </div>
-
-                      {el ? (
-                        <p className={`text-xs uppercase tracking-[0.2em] ${el.text} mb-3`}>{el.name} element bound</p>
-                      ) : (
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Ready Combatant</p>
-                      )}
-                      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-                        {el ? "Your path is chosen" : "Welcome to the arena"}
-                      </h1>
-                      <p className="mt-4 text-white/45 text-sm leading-relaxed max-w-xs mx-auto">
-                        Guild submissions are open. Once the timer expires, the 20 guilds will be selected and the protocol begins.
-                      </p>
-
-                      {/* Countdown */}
-                      <div className="mt-10">
-                        <div className="flex items-center justify-center gap-2 mb-5">
-                          <Clock className="w-3.5 h-3.5 text-white/30" />
-                          <span className="text-[11px] uppercase tracking-[0.18em] text-white/30">
-                            {cd.expired ? "Submissions closed" : "Guild submission closes in"}
-                          </span>
-                        </div>
-                        {!cd.expired ? (
-                          <div className="flex items-center justify-center gap-3">
-                            {[{v:cd.days,l:"Days"},{v:cd.hours,l:"Hours"},{v:cd.minutes,l:"Min"},{v:cd.seconds,l:"Sec"}].map(({v,l},i) => (
-                              <div key={l} className="flex items-center gap-3">
-                                <div className="flex flex-col items-center">
-                                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md flex items-center justify-center">
-                                    <span className="text-2xl sm:text-3xl font-bold tabular-nums">{String(v).padStart(2,"0")}</span>
-                                  </div>
-                                  <span className="text-[10px] uppercase tracking-widest text-white/30 mt-2">{l}</span>
-                                </div>
-                                {i < 3 && <span className="text-2xl font-light text-white/20 mb-5">:</span>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl border border-white/10 bg-white/5 text-white/40 text-sm">
-                            Guild selection in progress…
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Status pill */}
-                      <div className={`mt-8 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border ${el?.border ?? "border-white/10"} ${el?.bg ?? "bg-white/5"} backdrop-blur-md text-sm`}>
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                        <span className={el?.text ?? "text-white/50"}>
-                          {el ? `${el.name} soul bound` : "Request submitted — pending review"}
-                        </span>
-                      </div>
-                    </motion.div>
-                  );
-                })()}
-              </div>
-
-              {/* Daily check-in modal */}
-              {checkInOpen && session && (
-                <DailyCheckIn
-                  userId={session.user.id}
-                  onClose={() => setCheckInOpen(false)}
-                  onClaimed={() => {
-                    queryClient.invalidateQueries({ queryKey: ["landing-full-profile", session.user.id] });
-                    queryClient.invalidateQueries({ queryKey: ["checkin-status", session.user.id] });
-                    refetchCheckIn();
-                  }}
-                />
-              )}
-            </motion.div>
+          {phase === "waiting" && session && (
+            <WaitingPhase
+              session={session}
+              fullProfile={fullProfile}
+              profile={profile}
+              referralCodes={referralCodes ?? []}
+              checkInStatus={checkInStatus}
+              checkInOpen={checkInOpen}
+              setCheckInOpen={setCheckInOpen}
+              handleSignOut={handleSignOut}
+              refetchCheckIn={refetchCheckIn}
+              queryClient={queryClient}
+            />
           )}
 
         </AnimatePresence>
