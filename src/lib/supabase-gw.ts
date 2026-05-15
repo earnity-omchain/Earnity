@@ -82,7 +82,7 @@ export async function addToInventory(
   if (error) throw error;
 }
 
-export async function openChest(userId: string): Promise<<{
+export async function openChest(userId: string): Promise<{
   reward: { type: string; subtype?: string; quantity: number };
   nextAvailable: Date;
 }> {
