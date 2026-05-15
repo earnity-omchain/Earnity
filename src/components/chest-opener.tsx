@@ -164,13 +164,6 @@ export default function ChestOpener() {
             )}
 
             <div className="mt-6 w-full space-y-1.5">
-              <div I got cut off. Let me continue with the remaining files in the same format.
-
----
-
-## `src/components/chest-opener.tsx` (continued)
-
-```tsx
               <div className="text-[10px] uppercase tracking-wider text-zinc-600 text-center mb-2">
                 Drop Rates
               </div>
