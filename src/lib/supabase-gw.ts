@@ -59,7 +59,7 @@ export async function getGuildCooldowns(guildId: string) {
 
 export async function getUserMP(userId: string) {
   const { data, error } = await supabase.rpc("get_current_mp", {
-    p_user_id: userId,
+    user_id: userId,  // or just pass userId directly if function takes single arg
   });
   if (error) throw error;
   return data ?? 100;
