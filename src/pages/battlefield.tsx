@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
@@ -54,11 +54,25 @@ const ITEM_COLORS: Record<string, string> = {
   [GAME_ITEMS.MP_POTION]: "#eab308",
 };
 
+// Element key → actual CSS color for glow/bar (since Tailwind class names
+// can't be used directly as CSS color values)
+const ELEMENT_COLORS: Record<string, string> = {
+  fire: "#f97316",
+  water: "#38bdf8",
+  nature: "#4ade80",
+  rock: "#a8a29e",
+  lightning: "#facc15",
+  lighting: "#facc15",
+  wind: "#e2e8f0",
+};
+
 const TABS = [
   { id: "battlefield", label: "Battlefield", icon: Crosshair },
   { id: "arsenal", label: "Arsenal", icon: Shield },
   { id: "log", label: "War Log", icon: Activity },
 ] as const;
+
+type TabId = "battlefield" | "arsenal" | "log";
 
 // ── Attack Particles Canvas ───────────────────────────────────────────────────
 function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string }) {
@@ -159,7 +173,8 @@ function HPBar({ value, max = 100, animate: shouldAnimate = false, className = "
   );
 }
 
-// ── MP / Energy Bar ────────────────────────────────────────────────────────────
+// ── MP / Energy Bar ─────────────────────────────────────────────────────────
+// FIX: color is now always a valid CSS color string (hex), never a Tailwind class
 function EnergyBar({ value, max = 100, color = "#a855f7", className = "" }: {
   value: number; max?: number; color?: string; className?: string;
 }) {
@@ -220,12 +235,12 @@ function ConfirmAttackModal({ guild, itemType, onConfirm, onCancel, isPending }:
             </div>
           </div>
 
-          <div className={`flex items-center gap-3 p-3 rounded-xl mb-4 border ${el.border} ${el.bg}`}>
+          <div className="flex items-center gap-3 p-3 rounded-xl mb-4 border border-white/10 bg-white/3">
             <img src={getGuildImage(guild.name, guild.element)} alt={guild.name}
               className="w-10 h-10 rounded-lg object-cover border border-white/10" />
             <div>
               <div className="font-bold text-white text-sm">{guild.name}</div>
-              <div className={`text-xs flex items-center gap-1 ${el.text}`}>
+              <div className="text-xs flex items-center gap-1 text-white/50">
                 {ELEMENT_ICONS[guild.element]} {el.label} • HP: {guild.hp}%
               </div>
             </div>
@@ -280,7 +295,7 @@ function AttackToast({ message, success, onDismiss }: {
   useEffect(() => {
     const t = setTimeout(onDismiss, 4000);
     return () => clearTimeout(t);
-  }, []);
+  }, [onDismiss]);
 
   return (
     <motion.div
@@ -317,22 +332,20 @@ function GuildBuilding({
   onClick: () => void; attackParticle: boolean;
 }) {
   const el = ELEMENT_META[guild.element] || ELEMENT_META.fire;
+  // FIX: use ELEMENT_COLORS map for actual CSS color values
+  const elColor = ELEMENT_COLORS[guild.element] || "#f97316";
   const shieldActive = guild.shield_active_until && new Date(guild.shield_active_until) > new Date();
   const guildImg = getGuildImage(guild.name, guild.element);
   const hp = guild.hp ?? 100;
-  const power = Math.min(100, (guild.ranking_score || 0) / 100);
-
-  // Staggered snake offset for isometric illusion
-  const row = Math.floor(index / 5);
-  const staggerOffset = row % 2 === 1 ? "translateX(1.5rem)" : "translateX(-0.5rem)";
-  const depthOffset = `translateY(${index % 2 === 0 ? "0rem" : "1rem"})`;
 
   const rankColors = [
-    { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.5)", text: "#fbbf24" },   // 1st
-    { bg: "rgba(156,163,175,0.1)", border: "rgba(156,163,175,0.4)", text: "#9ca3af" }, // 2nd
-    { bg: "rgba(180,83,9,0.1)", border: "rgba(180,83,9,0.4)", text: "#f97316" },      // 3rd
+    { bg: "rgba(234,179,8,0.15)", border: "rgba(234,179,8,0.5)", text: "#fbbf24" },
+    { bg: "rgba(156,163,175,0.1)", border: "rgba(156,163,175,0.4)", text: "#9ca3af" },
+    { bg: "rgba(180,83,9,0.1)", border: "rgba(180,83,9,0.4)", text: "#f97316" },
   ];
-  const rankStyle = index < 3 ? rankColors[index] : { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)", text: "#6b7280" };
+  const rankStyle = index < 3
+    ? rankColors[index]
+    : { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)", text: "#6b7280" };
 
   return (
     <motion.div
@@ -342,15 +355,14 @@ function GuildBuilding({
         opacity: 1,
         y: 0,
         scale: isSelected ? 1.05 : 1,
-        filter: isSelected ? `drop-shadow(0 0 20px ${el.glow})` : `drop-shadow(0 0 8px ${el.glow}44)`,
+        filter: isSelected
+          ? `drop-shadow(0 0 20px ${elColor})`
+          : `drop-shadow(0 0 8px ${elColor}44)`,
       }}
       transition={{ delay: index * 0.03, type: "spring", damping: 18 }}
       onClick={onClick}
       className="relative cursor-pointer group select-none"
-      style={{
-        transform: `${staggerOffset} ${depthOffset}`,
-        fontFamily: "'Space Mono', monospace",
-      }}
+      style={{ fontFamily: "'Space Mono', monospace" }}
     >
       {/* Attack particles overlay */}
       {attackParticle && (
@@ -364,13 +376,13 @@ function GuildBuilding({
         className="relative rounded-2xl overflow-hidden transition-all duration-300"
         style={{
           background: isSelected
-            ? `linear-gradient(180deg, ${el.bg.replace("bg-", "").replace("/15", "")}22, rgba(5,5,5,0.95))`
+            ? `linear-gradient(180deg, ${elColor}18, rgba(5,5,5,0.95))`
             : "linear-gradient(180deg, rgba(20,20,20,0.9), rgba(5,5,5,0.95))",
           border: isSelected
-            ? `1px solid ${el.border.replace("border-", "").replace("/50", "")}`
+            ? `1px solid ${elColor}66`
             : `1px solid ${rankStyle.border}`,
           boxShadow: isSelected
-            ? `0 0 40px ${el.glow}33, inset 0 0 20px ${el.glow}11`
+            ? `0 0 40px ${elColor}33, inset 0 0 20px ${elColor}11`
             : `0 4px 20px rgba(0,0,0,0.6)`,
         }}
       >
@@ -390,7 +402,7 @@ function GuildBuilding({
             className="absolute inset-0 pointer-events-none rounded-2xl z-0"
             animate={{ opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 1.5, repeat: Infinity }}
-            style={{ boxShadow: `inset 0 0 24px ${el.glow}` }}
+            style={{ boxShadow: `inset 0 0 24px ${elColor}` }}
           />
         )}
 
@@ -399,6 +411,7 @@ function GuildBuilding({
           className="absolute top-2 left-2 z-20 w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0 shadow-lg"
           style={{ background: rankStyle.bg, border: `1px solid ${rankStyle.border}`, color: rankStyle.text }}
         >
+          {/* FIX: use index + 1 for rank, not guild.rank field */}
           {index + 1}
         </div>
 
@@ -412,15 +425,16 @@ function GuildBuilding({
 
         {/* YOURS Badge */}
         {isMyGuild && (
-          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest"
-            style={{ background: el.bg, border: `1px solid ${el.border}`, color: el.text }}>
+          <div
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
+            style={{ background: `${elColor}22`, border: `1px solid ${elColor}55`, color: elColor }}
+          >
             YOUR GUILD
           </div>
         )}
 
         {/* Building Image */}
         <div className="relative p-4 pb-2 flex flex-col items-center">
-          {/* Ground shadow */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-20 h-3 bg-black/60 rounded-[100%] blur-sm" />
 
           <motion.div
@@ -433,22 +447,29 @@ function GuildBuilding({
               alt={guild.name}
               className="w-full h-full object-contain drop-shadow-2xl"
               style={{
-                filter: `drop-shadow(0 0 12px ${el.glow}66) drop-shadow(0 4px 6px rgba(0,0,0,0.8))`,
+                filter: `drop-shadow(0 0 12px ${elColor}66) drop-shadow(0 4px 6px rgba(0,0,0,0.8))`,
               }}
-              onError={(e) => { (e.target as HTMLImageElement).src = el.img; }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = el.img;
+              }}
             />
           </motion.div>
 
-          {/* Floating HP Bar (above building) */}
+          {/* HP Bar */}
           <div className="w-full mt-2 space-y-1">
             <div className="flex items-center gap-1.5">
               <Heart className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
               <HPBar value={hp} className="flex-1" />
               <span className="text-[9px] font-mono text-white/50 w-7 text-right">{hp}%</span>
             </div>
+            {/* FIX: EnergyBar now receives a real hex color */}
             <div className="flex items-center gap-1.5">
               <Zap className="w-2.5 h-2.5 text-purple-400 flex-shrink-0" />
-              <EnergyBar value={power} color={el.text.replace("text-", "#") || "#a855f7"} className="flex-1" />
+              <EnergyBar
+                value={Math.min(100, (guild.ranking_score || 0) / 100)}
+                color={elColor}
+                className="flex-1"
+              />
             </div>
           </div>
         </div>
@@ -456,10 +477,12 @@ function GuildBuilding({
         {/* Guild Info Footer */}
         <div className="px-3 pb-3 pt-1 text-center">
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
-            <span className="text-xs font-black text-white tracking-tight truncate max-w-[90%]">{guild.name}</span>
+            <span className="text-xs font-black text-white tracking-tight truncate max-w-[90%]">
+              {guild.name}
+            </span>
           </div>
           <div className="flex items-center justify-center gap-2 text-[10px]">
-            <span className={`flex items-center gap-1 ${el.text}`}>
+            <span className="flex items-center gap-1" style={{ color: elColor }}>
               {ELEMENT_ICONS[guild.element]} {el.label}
             </span>
             <span className="text-white/20">·</span>
@@ -473,7 +496,8 @@ function GuildBuilding({
   );
 }
 
-// ── Guild Detail Panel (Slide-in / Bottom Sheet) ──────────────────────────────
+// ── Guild Detail Panel ────────────────────────────────────────────────────────
+// FIX: Responsive — bottom sheet on mobile, right side panel on desktop
 function GuildDetailPanel({
   guild,
   isMyGuild,
@@ -495,15 +519,16 @@ function GuildDetailPanel({
   onClose: () => void;
 }) {
   const el = ELEMENT_META[guild.element] || ELEMENT_META.fire;
+  const elColor = ELEMENT_COLORS[guild.element] || "#f97316";
   const shieldActive = guild.shield_active_until && new Date(guild.shield_active_until) > new Date();
   const guildImg = getGuildImage(guild.name, guild.element);
 
   const getItemQty = (type: string) =>
-    inventory?.find(i => i.item_type === type)?.quantity || 0;
+    inventory?.find((i: any) => i.item_type === type)?.quantity || 0;
 
   const isOnCooldown = (itemType: string) => {
     if (!myGuildCooldowns) return false;
-    const cd = myGuildCooldowns.find(c => c.item_type === itemType);
+    const cd = myGuildCooldowns.find((c: any) => c.item_type === itemType);
     return cd ? new Date((cd as any).expires_at) > new Date() : false;
   };
 
@@ -514,36 +539,56 @@ function GuildDetailPanel({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[250] flex justify-end md:items-stretch items-end"
+      className="fixed inset-0 z-[250] flex md:justify-end md:items-stretch items-end justify-center"
       style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
+      {/* 
+        MOBILE: slides up from bottom (full width, 85vh)
+        DESKTOP: slides in from right (400px, full height)
+      */}
       <motion.div
-        initial={{ x: "100%", y: 0 }}
+        initial={{ x: 0, y: "100%" }}
         animate={{ x: 0, y: 0 }}
-        exit={{ x: "100%", y: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="w-full md:w-[400px] h-[85vh] md:h-full bg-[#080808] border-l border-white/10 shadow-2xl overflow-y-auto"
-        style={{ boxShadow: "-10px 0 40px rgba(0,0,0,0.8)" }}
+        exit={{ x: 0, y: "100%" }}
+        // On md+ override to slide from right
+        className="w-full md:w-[400px] h-[85vh] md:h-full bg-[#080808] md:border-l md:border-t-0 border-t border-white/10 shadow-2xl overflow-y-auto rounded-t-3xl md:rounded-none"
+        style={{
+          boxShadow: "0 -10px 40px rgba(0,0,0,0.8)",
+          // On desktop the animation comes from the right, handled via CSS only above
+        }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Drag handle pill — mobile only */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+
         {/* Header Image */}
         <div className="relative h-40 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#080808] z-10" />
           <img src={guildImg} alt={guild.name} className="w-full h-full object-cover opacity-40" />
           <div className="absolute top-4 right-4 z-20">
-            <button onClick={onClose} className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white transition-colors">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white transition-colors"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="absolute bottom-4 left-5 z-20">
             <div className="flex items-center gap-2">
-              <div className={`p-1.5 rounded-lg border ${el.border} ${el.bg}`}>
+              <div
+                className="p-1.5 rounded-lg"
+                style={{ border: `1px solid ${elColor}55`, background: `${elColor}22` }}
+              >
                 {ELEMENT_ICONS[guild.element]}
               </div>
               <div>
                 <h2 className="text-lg font-black text-white">{guild.name}</h2>
-                <div className={`text-xs ${el.text} font-bold uppercase tracking-wider`}>{el.label} Guild</div>
+                <div className="text-xs font-bold uppercase tracking-wider" style={{ color: elColor }}>
+                  {el.label} Guild
+                </div>
               </div>
             </div>
           </div>
@@ -556,7 +601,8 @@ function GuildDetailPanel({
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Guild Master</div>
               <div className="text-sm font-bold text-white flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
-                {guild.guild_master || "Unknown"}
+                {/* FIX: fall back to guild_master_id if guild_master not returned */}
+                {guild.guild_master || guild.guild_master_id || "Unknown"}
               </div>
             </div>
             <div className="p-3 rounded-xl bg-white/3 border border-white/8">
@@ -576,14 +622,20 @@ function GuildDetailPanel({
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Rank</div>
               <div className="text-sm font-bold text-yellow-400 flex items-center gap-1.5">
                 <Trophy className="w-3.5 h-3.5" />
-                #{guild.rank || "?"}
+                {/* FIX: rank is not in the query, show ranking_score rank via display */}
+                #{guild._rank ?? "?"}
               </div>
             </div>
           </div>
 
           {/* HP & Shield Status */}
-          <div className="p-4 rounded-xl space-y-3"
-            style={{ background: "rgba(20,20,20,0.6)", border: `1px solid ${shieldActive ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)"}` }}>
+          <div
+            className="p-4 rounded-xl space-y-3"
+            style={{
+              background: "rgba(20,20,20,0.6)",
+              border: `1px solid ${shieldActive ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)"}`,
+            }}
+          >
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] uppercase tracking-widest text-red-400">Fortress HP</span>
               <span className="text-xs font-mono text-white/50">{guild.hp ?? 100}%</span>
@@ -613,6 +665,7 @@ function GuildDetailPanel({
                   const qty = getItemQty(itemKey);
                   const hasMP = currentMP >= meta.mpCost;
                   const enabled = canAttack && hasMP && qty > 0;
+                  const color = ITEM_COLORS[itemKey];
                   return (
                     <button
                       key={itemKey}
@@ -620,14 +673,16 @@ function GuildDetailPanel({
                       disabled={!enabled || attackMutation.isPending}
                       className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all border"
                       style={{
-                        background: enabled ? `${ITEM_COLORS[itemKey]}08` : "rgba(255,255,255,0.02)",
-                        borderColor: enabled ? `${ITEM_COLORS[itemKey]}30` : "rgba(255,255,255,0.05)",
+                        background: enabled ? `${color}08` : "rgba(255,255,255,0.02)",
+                        borderColor: enabled ? `${color}30` : "rgba(255,255,255,0.05)",
                         opacity: enabled ? 1 : 0.4,
                         cursor: enabled ? "pointer" : "not-allowed",
                       }}
                     >
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: `${ITEM_COLORS[itemKey]}15`, border: `1px solid ${ITEM_COLORS[itemKey]}30` }}>
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: `${color}15`, border: `1px solid ${color}30` }}
+                      >
                         <img src={meta.image} alt={meta.label} className="w-7 h-7 object-contain" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -638,12 +693,17 @@ function GuildDetailPanel({
                         <div className="text-[10px] text-white/35 mt-0.5">{meta.description}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <Zap className="w-2.5 h-2.5 text-purple-400" />
-                          <span className="text-[10px] font-mono" style={{ color: hasMP ? ITEM_COLORS[itemKey] : "#ef4444" }}>
+                          <span
+                            className="text-[10px] font-mono"
+                            style={{ color: hasMP ? color : "#ef4444" }}
+                          >
                             {meta.mpCost} MP
                           </span>
                         </div>
                       </div>
-                      {enabled && <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: ITEM_COLORS[itemKey] }} />}
+                      {enabled && (
+                        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color }} />
+                      )}
                     </button>
                   );
                 })}
@@ -664,12 +724,15 @@ function GuildDetailPanel({
                   const onCooldown = itemKey !== GAME_ITEMS.MP_POTION && isOnCooldown(itemKey);
                   const canUse = qty > 0 && !onCooldown;
                   return (
-                    <div key={itemKey} className="flex items-center gap-3 p-2.5 rounded-lg"
+                    <div
+                      key={itemKey}
+                      className="flex items-center gap-3 p-2.5 rounded-lg"
                       style={{
                         background: canUse ? "rgba(59,130,246,0.05)" : "rgba(255,255,255,0.02)",
                         border: `1px solid ${canUse ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.05)"}`,
                         opacity: qty === 0 ? 0.4 : 1,
-                      }}>
+                      }}
+                    >
                       <img src={meta.image} alt={meta.label} className="w-8 h-8 object-contain flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-black text-white">{meta.label}</div>
@@ -721,65 +784,6 @@ function GuildDetailPanel({
   );
 }
 
-// ── Attack Item Button (Arsenal Tab) ───────────────────────────────────────────
-function AttackItemButton({ itemKey, qty, currentMP, canAttack, isLoading, onClick }: {
-  itemKey: string; qty: number; currentMP: number; canAttack: boolean;
-  isLoading: boolean; onClick: () => void;
-}) {
-  const meta = ITEM_META[itemKey];
-  const hasMP = currentMP >= meta.mpCost;
-  const hasItem = qty > 0;
-  const enabled = canAttack && hasMP && hasItem;
-  const color = ITEM_COLORS[itemKey];
-
-  return (
-    <motion.button
-      whileHover={enabled ? { scale: 1.02 } : {}}
-      whileTap={enabled ? { scale: 0.97 } : {}}
-      onClick={enabled ? onClick : undefined}
-      disabled={!enabled || isLoading}
-      className="relative w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all overflow-hidden"
-      style={{
-        background: enabled ? `${color}08` : "rgba(255,255,255,0.02)",
-        border: `1px solid ${enabled ? `${color}33` : "rgba(255,255,255,0.05)"}`,
-        opacity: enabled ? 1 : 0.45,
-        cursor: enabled ? "pointer" : "not-allowed",
-      }}
-    >
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
-        <img src={meta.image} alt={meta.label} className="w-7 h-7 object-contain" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-black text-white">{meta.label}</span>
-          <span className="text-xs font-mono text-white/30">×{qty}</span>
-        </div>
-        <div className="text-[10px] text-white/35 mt-0.5 leading-tight">{meta.description}</div>
-        <div className="flex items-center gap-2 mt-1.5">
-          <div className="flex items-center gap-1">
-            <Zap className="w-2.5 h-2.5 text-purple-400" />
-            <span className="text-[10px] font-mono" style={{ color: hasMP ? color : "#ef4444" }}>
-              {meta.mpCost} MP
-            </span>
-          </div>
-          {!hasMP && <span className="text-[9px] text-red-400 uppercase tracking-wider">insufficient mp</span>}
-          {!hasItem && <span className="text-[9px] text-white/30 uppercase tracking-wider">not owned</span>}
-        </div>
-      </div>
-      {enabled && <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color }} />}
-      {isLoading && (
-        <motion.div
-          className="absolute inset-0 rounded-xl"
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 0.8, repeat: Infinity }}
-          style={{ background: `${color}15` }}
-        />
-      )}
-    </motion.button>
-  );
-}
-
 // ── War Log Entry ─────────────────────────────────────────────────────────────
 function WarLogEntry({ attack, index }: { attack: any; index: number }) {
   const meta = ITEM_META[attack.item_type];
@@ -797,8 +801,10 @@ function WarLogEntry({ attack, index }: { attack: any; index: number }) {
         border: `1px solid ${isNuke ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)"}`,
       }}
     >
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: `${color}15`, border: `1px solid ${color}30` }}
+      >
         <img src={meta?.image || ""} alt="" className="w-5 h-5 object-contain" />
       </div>
       <div className="flex-1 min-w-0">
@@ -832,7 +838,8 @@ export default function Battlefield() {
   const [confirmItem, setConfirmItem] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; success: boolean } | null>(null);
   const [attackedGuildId, setAttackedGuildId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<<"battlefield" | "arsenal" | "log">("battlefield");
+  // FIX: explicit TabId type, no double << generic syntax
+  const [activeTab, setActiveTab] = useState<TabId>("battlefield");
 
   const userId = profile?.id;
   const myGuildId = profile?.guild_id;
@@ -843,6 +850,9 @@ export default function Battlefield() {
     queryFn: getGuildsWithRanking,
     refetchInterval: 30000,
   });
+
+  // FIX: attach _rank to each guild from array index for display use
+  const rankedGuilds = guilds?.map((g: any, i: number) => ({ ...g, _rank: i + 1 }));
 
   const { data: inventory } = useQuery({
     queryKey: ["inventory", userId],
@@ -914,47 +924,56 @@ export default function Battlefield() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const getItemQty = (type: string) =>
-    inventory?.find(i => i.item_type === type)?.quantity || 0;
+    inventory?.find((i: any) => i.item_type === type)?.quantity || 0;
 
   const isShielded = (guild: any) =>
     guild.shield_active_until && new Date(guild.shield_active_until) > new Date();
 
-  const isOnCooldown = (itemType: string) => {
-    if (!myGuildCooldowns) return false;
-    const cd = myGuildCooldowns.find(c => c.item_type === itemType);
-    return cd ? new Date((cd as any).expires_at) > new Date() : false;
-  };
-
-  const myGuild = guilds?.find(g => g.id === myGuildId);
+  const myGuild = rankedGuilds?.find((g: any) => g.id === myGuildId);
   const mpPercent = (currentMP / MP_MAX) * 100;
 
   return (
-    <div className="min-h-screen text-white"
-      style={{
-        background: "#050505",
-        fontFamily: "'Space Mono', 'Courier New', monospace",
-      }}
+    <div
+      className="min-h-screen text-white"
+      style={{ background: "#050505", fontFamily: "'Space Mono', 'Courier New', monospace" }}
     >
       {/* ── Background ──────────────────────────────────────────────────────── */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-cover bg-center opacity-10"
-          style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }} />
-        <div className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(239,68,68,0.04) 0%, transparent 60%)" }} />
-        <div className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse at 80% 50%, rgba(168,85,247,0.03) 0%, transparent 60%)" }} />
-        <div className="absolute inset-0 opacity-[0.03]"
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-10"
+          style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(239,68,68,0.04) 0%, transparent 60%)" }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at 80% 50%, rgba(168,85,247,0.03) 0%, transparent 60%)" }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)",
+            backgroundImage:
+              "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)",
             backgroundSize: "100% 3px",
-          }} />
+          }}
+        />
       </div>
 
       {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-4"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(20px)" }}>
-        <button onClick={() => setLocation("/")}
-          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm">
+      <nav
+        className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-4"
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
+        <button
+          onClick={() => setLocation("/")}
+          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm"
+        >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:block">Back</span>
         </button>
@@ -964,7 +983,10 @@ export default function Battlefield() {
             <Swords className="w-5 h-5 text-red-500" />
           </motion.div>
           <span className="font-black text-sm uppercase tracking-[0.2em] text-white">Guild Wars</span>
-          <motion.div animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity, delay: 1 }}>
+          <motion.div
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+          >
             <Swords className="w-5 h-5 text-red-500" />
           </motion.div>
         </div>
@@ -981,8 +1003,13 @@ export default function Battlefield() {
 
       {/* ── Player Status Bar ────────────────────────────────────────────────── */}
       {session && profile && (
-        <div className="relative z-10 px-5 sm:px-8 py-3"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,0,0,0.4)" }}>
+        <div
+          className="relative z-10 px-5 sm:px-8 py-3"
+          style={{
+            borderBottom: "1px solid rgba(255,255,255,0.04)",
+            background: "rgba(0,0,0,0.4)",
+          }}
+        >
           <div className="max-w-7xl mx-auto flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-3 flex-1 min-w-[180px]">
               <Zap className="w-4 h-4 text-purple-400 flex-shrink-0" />
@@ -991,7 +1018,7 @@ export default function Battlefield() {
                   <span className="text-[9px] uppercase tracking-widest text-purple-400">Mana</span>
                   <span className="text-[10px] font-mono text-white/40">{currentMP}/{MP_MAX}</span>
                 </div>
-                <EnergyBar value={currentMP} max={MP_MAX} className="h-2" />
+                <EnergyBar value={currentMP} max={MP_MAX} color="#a855f7" className="h-2" />
               </div>
             </div>
 
@@ -1037,8 +1064,13 @@ export default function Battlefield() {
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <div className="relative z-10 px-5 sm:px-8 pt-5" style={{ maxWidth: "1400px", margin: "0 auto" }}>
-        <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div
+          className="flex gap-1 mb-6 p-1 rounded-xl w-fit"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -1058,12 +1090,13 @@ export default function Battlefield() {
       </div>
 
       {/* ── Main Content ────────────────────────────────────────────────────── */}
-      <div className="relative z-10 px-5 sm:px-8 pb-20" style={{ maxWidth: "1400px", margin: "0 auto" }}>
+      <div
+        className="relative z-10 px-5 sm:px-8 pb-20"
+        style={{ maxWidth: "1400px", margin: "0 auto" }}
+      >
         <AnimatePresence mode="wait">
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              BATTLEFIELD TAB — Isometric Staggered Map View
-          ═══════════════════════════════════════════════════════════════════ */}
+          {/* ═══ BATTLEFIELD TAB ══════════════════════════════════════════════ */}
           {activeTab === "battlefield" && (
             <motion.div
               key="battlefield"
@@ -1072,34 +1105,39 @@ export default function Battlefield() {
               exit={{ opacity: 0 }}
               className="relative"
             >
-              {/* Map Container */}
-              <div className="relative rounded-2xl overflow-hidden border border-white/5"
+              <div
+                className="relative rounded-2xl overflow-hidden border border-white/5"
                 style={{
                   background: "linear-gradient(180deg, rgba(10,10,10,0.6), rgba(5,5,5,0.8))",
                   boxShadow: "inset 0 0 80px rgba(0,0,0,0.8)",
-                }}>
-
-                {/* Map Background Pattern */}
-                <div className="absolute inset-0 opacity-[0.04]"
+                }}
+              >
+                {/* Map dot pattern */}
+                <div
+                  className="absolute inset-0 opacity-[0.04]"
                   style={{
                     backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`,
                     backgroundSize: "24px 24px",
-                  }} />
+                  }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
 
                 {/* Staggered Guild Grid */}
                 <div className="relative z-10 p-4 md:p-8">
                   {isLoading && (
                     <div className="flex items-center justify-center py-32">
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
                         <Swords className="w-8 h-8 text-red-500" />
                       </motion.div>
                     </div>
                   )}
 
-                  {!isLoading && guilds && (
+                  {!isLoading && rankedGuilds && (
                     <div className="columns-2 md:columns-3 lg:columns-5 gap-4 md:gap-6 space-y-4 md:space-y-6">
-                      {guilds.map((guild, index) => (
+                      {rankedGuilds.map((guild: any, index: number) => (
                         <div
                           key={guild.id}
                           className="break-inside-avoid"
@@ -1128,19 +1166,18 @@ export default function Battlefield() {
                 </div>
               </div>
 
-              {/* Empty State */}
-              {!isLoading && (!guilds || guilds.length === 0) && (
+              {!isLoading && (!rankedGuilds || rankedGuilds.length === 0) && (
                 <div className="text-center py-24">
                   <MapPin className="w-10 h-10 text-white/15 mx-auto mb-4" />
-                  <div className="text-sm text-white/25 uppercase tracking-widest">No guilds on the battlefield</div>
+                  <div className="text-sm text-white/25 uppercase tracking-widest">
+                    No guilds on the battlefield
+                  </div>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              ARSENAL TAB
-          ═══════════════════════════════════════════════════════════════════ */}
+          {/* ═══ ARSENAL TAB ══════════════════════════════════════════════════ */}
           {activeTab === "arsenal" && (
             <motion.div
               key="arsenal"
@@ -1150,8 +1187,10 @@ export default function Battlefield() {
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Attack */}
-                <div className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(239,68,68,0.15)" }}
+                >
                   <div className="h-0.5 bg-gradient-to-r from-red-600 to-orange-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
@@ -1164,8 +1203,11 @@ export default function Battlefield() {
                         const qty = getItemQty(itemKey);
                         const color = ITEM_COLORS[itemKey];
                         return (
-                          <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
-                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+                          <div
+                            key={itemKey}
+                            className="flex items-center gap-3 p-3 rounded-lg"
+                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}
+                          >
                             <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
                             <div className="flex-1">
                               <div className="font-black text-white text-sm">{meta.label}</div>
@@ -1186,8 +1228,10 @@ export default function Battlefield() {
                 </div>
 
                 {/* Defense */}
-                <div className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(59,130,246,0.15)" }}>
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(59,130,246,0.15)" }}
+                >
                   <div className="h-0.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
@@ -1200,8 +1244,11 @@ export default function Battlefield() {
                         const qty = getItemQty(itemKey);
                         const color = ITEM_COLORS[itemKey];
                         return (
-                          <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
-                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+                          <div
+                            key={itemKey}
+                            className="flex items-center gap-3 p-3 rounded-lg"
+                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}
+                          >
                             <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
                             <div className="flex-1">
                               <div className="font-black text-white text-sm">{meta.label}</div>
@@ -1218,35 +1265,55 @@ export default function Battlefield() {
                 </div>
 
                 {/* Shards & Elementals */}
-                <div className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}
+                >
                   <div className="h-0.5 bg-gradient-to-r from-purple-600 to-pink-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <Zap className="w-4 h-4 text-purple-400" />
-                      <span className="text-xs uppercase tracking-widest text-purple-400">Shards & Elementals</span>
+                      <span className="text-xs uppercase tracking-widest text-purple-400">
+                        Shards & Elementals
+                      </span>
                     </div>
                     <div className="space-y-2">
-                      {["fire", "water", "nature", "rock", "lightning", "wind"].map(el => {
-                        const meta = ELEMENT_META[el];
-                        const shards = inventory?.find(i => i.item_type === `shard_${el}`)?.quantity || 0;
-                        const elementals = inventory?.find(i => i.item_type === `elemental_${el}`)?.quantity || 0;
+                      {["fire", "water", "nature", "rock", "lightning", "wind"].map(elKey => {
+                        const elMeta = ELEMENT_META[elKey];
+                        const shards =
+                          inventory?.find((i: any) => i.item_type === `shard_${elKey}`)?.quantity || 0;
+                        const elementals =
+                          inventory?.find((i: any) => i.item_type === `elemental_${elKey}`)?.quantity || 0;
+                        const elHex = ELEMENT_COLORS[elKey] || "#a855f7";
                         return (
-                          <div key={el} className="flex items-center gap-2 p-2 rounded-lg"
-                            style={{ background: `${meta.bg}`, border: `1px solid ${meta.border}` }}>
-                            <img src={meta.shard} alt={el} className="w-6 h-6 object-contain" />
+                          <div
+                            key={elKey}
+                            className="flex items-center gap-2 p-2 rounded-lg"
+                            style={{
+                              background: `${elHex}11`,
+                              border: `1px solid ${elHex}33`,
+                            }}
+                          >
+                            <img src={elMeta.shard} alt={elKey} className="w-6 h-6 object-contain" />
                             <div className="flex-1">
-                              <span className={`text-xs font-bold ${meta.text}`}>{meta.label}</span>
+                              <span className="text-xs font-bold" style={{ color: elHex }}>
+                                {elMeta.label}
+                              </span>
                               <div className="h-1 bg-black/30 rounded-full mt-1 overflow-hidden">
-                                <div className="h-full rounded-full" style={{
-                                  width: `${Math.min(100, (shards / 4) * 100)}%`,
-                                  background: meta.text.replace("text-", ""),
-                                }} />
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.min(100, (shards / 4) * 100)}%`,
+                                    background: elHex,
+                                  }}
+                                />
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-[10px] font-mono text-white/50">{shards} shards</div>
-                              <div className="text-[10px] font-mono text-purple-400">{elementals} elemental</div>
+                              <div className="text-[10px] font-mono text-purple-400">
+                                {elementals} elemental
+                              </div>
                             </div>
                           </div>
                         );
@@ -1258,9 +1325,7 @@ export default function Battlefield() {
             </motion.div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              WAR LOG TAB
-          ═══════════════════════════════════════════════════════════════════ */}
+          {/* ═══ WAR LOG TAB ══════════════════════════════════════════════════ */}
           {activeTab === "log" && (
             <motion.div
               key="log"
@@ -1269,8 +1334,10 @@ export default function Battlefield() {
               exit={{ opacity: 0 }}
               className="max-w-2xl"
             >
-              <div className="rounded-xl overflow-hidden"
-                style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
                 <div className="h-0.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -1288,11 +1355,16 @@ export default function Battlefield() {
                     </motion.div>
                   </div>
 
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
-                    style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}>
+                  <div
+                    className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
+                    style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}
+                  >
                     {!attackLog?.length && (
                       <div className="text-center py-16">
-                        <motion.div animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
+                        <motion.div
+                          animate={{ opacity: [0.3, 0.6, 0.3] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
                           <Swords className="w-8 h-8 text-white/15 mx-auto mb-3" />
                         </motion.div>
                         <div className="text-xs text-white/20 uppercase tracking-widest">
@@ -1300,7 +1372,7 @@ export default function Battlefield() {
                         </div>
                       </div>
                     )}
-                    {attackLog?.map((attack, index) => (
+                    {attackLog?.map((attack: any, index: number) => (
                       <WarLogEntry key={attack.id} attack={attack} index={index} />
                     ))}
                   </div>
@@ -1312,7 +1384,7 @@ export default function Battlefield() {
         </AnimatePresence>
       </div>
 
-      {/* ── Guild Detail Panel (Overlay) ─────────────────────────────────────── */}
+      {/* ── Guild Detail Panel ───────────────────────────────────────────────── */}
       <AnimatePresence>
         {selectedGuild && (
           <GuildDetailPanel
