@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import {
-  Loader2, Shield, Swords, Clock, Users, Sparkles,
-  ArrowRight, Zap, Heart, Skull, Gem, ChevronDown,
+  Shield, Swords, Clock, Users, Sparkles,
+  Zap, Heart, Skull, Gem, ChevronDown,
   Flame, Droplets, Mountain, Wind, TreePine, CloudLightning,
   Copy, Check, Trophy, Scroll,
 } from "lucide-react";
@@ -65,8 +64,145 @@ function useCountdown(target: Date) {
     };
   };
   const [t, setT] = useState(calc);
-  useEffect(() => { const id = setInterval(() => setT(calc()), 1000); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    setT(calc());
+    const id = setInterval(() => setT(calc()), 1000);
+    return () => clearInterval(id);
+  }, [target.getTime()]);
   return t;
+}
+
+function InlineChest({ userId, profile }: { userId: string; profile: any }) {
+  const queryClient = useQueryClient();
+  const [reward, setReward] = useState<any>(null);
+  const [isOpening, setIsOpening] = useState(false);
+  const [showReward, setShowReward] = useState(false);
+  const [lastOpened, setLastOpened] = useState(profile?.last_chest_opened);
+
+  useEffect(() => {
+    setLastOpened(profile?.last_chest_opened);
+  }, [profile?.last_chest_opened]);
+
+  const canOpen = canOpenChest(lastOpened);
+  const cooldownRemaining = getChestCooldownRemaining(lastOpened);
+  const cooldownMs = cooldownRemaining * 60 * 60 * 1000;
+  const targetDate = useMemo(() => new Date(Date.now() + Math.max(0, cooldownMs)), [cooldownMs]);
+  const countdown = useCountdown(targetDate);
+
+  const openMutation = useMutation({
+    mutationFn: () => openChest(userId),
+    onSuccess: (result) => {
+      setReward(result.reward);
+      setIsOpening(false);
+      setShowReward(true);
+      setLastOpened(new Date().toISOString());
+      queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setTimeout(() => setShowReward(false), 4000);
+    },
+    onError: (err: any) => {
+      setIsOpening(false);
+      setReward({ type: "error", message: err.message });
+      setShowReward(true);
+      setTimeout(() => setShowReward(false), 3000);
+    },
+  });
+
+  const handleOpen = () => {
+    if (!canOpen || isOpening) return;
+    setIsOpening(true);
+    setReward(null);
+    setShowReward(false);
+    openMutation.mutate();
+  };
+
+  const getRewardIcon = () => {
+    if (!reward || reward.type === "error") return <Sparkles className="w-8 h-8 text-yellow-400" />;
+    switch (reward.type) {
+      case "coin": return <img src={GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      default: return <Sparkles className="w-8 h-8 text-yellow-400" />;
+    }
+  };
+
+  const getRewardLabel = () => {
+    if (!reward) return "Opening…";
+    if (reward.type === "error") return reward.message;
+    switch (reward.type) {
+      case "coin": return `${reward.quantity.toLocaleString()} Coins`;
+      case "shard": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Shard`;
+      case "elemental": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Elemental`;
+      case "item": return `${reward.quantity}x ${ITEM_META[reward.subtype]?.label || reward.subtype}`;
+      default: return "Mystery Reward";
+    }
+  };
+
+  const getRewardColor = () => {
+    switch (reward?.type) {
+      case "coin": return "text-yellow-400";
+      case "shard": return "text-blue-400";
+      case "elemental": return "text-purple-400";
+      case "item": return "text-red-400";
+      default: return "text-white";
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <motion.div
+        whileHover={canOpen && !isOpening ? { scale: 1.05 } : {}}
+        whileTap={canOpen && !isOpening ? { scale: 0.95 } : {}}
+        onClick={handleOpen}
+        className={`relative w-20 h-20 rounded-xl border flex items-center justify-center overflow-hidden transition-all ${
+          canOpen && !isOpening
+            ? "border-yellow-500/30 bg-yellow-500/10 cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/20"
+            : "border-zinc-800 bg-zinc-900/50 cursor-not-allowed"
+        }`}
+      >
+        <motion.img
+          src={isOpening ? GAME_ASSETS.mysteryboxOpened : GAME_ASSETS.mysteryboxClosed}
+          alt="chest"
+          className="w-14 h-14 object-contain"
+          animate={isOpening ? { rotate: [0, -8, 8, -8, 8, 0], scale: [1, 1.1, 1] } : {}}
+          transition={{ duration: 0.4, repeat: isOpening ? Infinity : 0 }}
+        />
+
+        {!canOpen && !isOpening && !showReward && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center">
+            <Clock className="w-5 h-5 text-zinc-500" />
+          </div>
+        )}
+
+        <AnimatePresence>
+          {showReward && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm p-1"
+            >
+              <div className="mb-1">{getRewardIcon()}</div>
+              <div className={`text-[10px] font-bold text-center leading-tight ${getRewardColor()}`}>
+                {getRewardLabel()}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <div className="text-[10px] font-mono">
+        {canOpen ? (
+          <span className="text-yellow-500/60">Ready to claim</span>
+        ) : (
+          <span className="text-zinc-500">
+            {countdown.hours}h {countdown.minutes}m {countdown.seconds}s
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut, currentMP, inventory }: {
@@ -187,128 +323,6 @@ function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut, cur
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function ChestModal({ isOpen, onClose, userId, profile }: {
-  isOpen: boolean; onClose: () => void; userId: string; profile: any;
-}) {
-  const queryClient = useQueryClient();
-  const [reward, setReward] = useState<any>(null);
-  const [isOpening, setIsOpening] = useState(false);
-
-  const canOpen = canOpenChest(profile?.last_chest_opened);
-  const cooldownRemaining = getChestCooldownRemaining(profile?.last_chest_opened);
-  const cooldownMinutes = Math.ceil(cooldownRemaining * 60);
-
-  const openMutation = useMutation({
-    mutationFn: () => openChest(userId),
-    onSuccess: (result) => {
-      setReward(result.reward);
-      setIsOpening(false);
-      queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-    },
-    onError: (err: any) => { setIsOpening(false); setReward({ type: "error", message: err.message }); },
-  });
-
-  const handleOpen = () => {
-    if (!canOpen) return;
-    setIsOpening(true); setReward(null); openMutation.mutate();
-  };
-
-  const getRewardIcon = () => {
-    if (!reward || reward.type === "error") return <Sparkles className="w-12 h-12 text-yellow-400" />;
-    switch (reward.type) {
-      case "coin": return <img src={GAME_ASSETS.coin} className="w-12 h-12 object-contain" alt="coin" />;
-      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-12 h-12 object-contain" alt="shard" />;
-      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-12 h-12 object-contain" alt="elemental" />;
-      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-12 h-12 object-contain" alt="item" />;
-      default: return <Sparkles className="w-12 h-12 text-yellow-400" />;
-    }
-  };
-
-  const getRewardLabel = () => {
-    if (!reward) return "Opening…";
-    if (reward.type === "error") return reward.message;
-    switch (reward.type) {
-      case "coin": return `${reward.quantity.toLocaleString()} Coins`;
-      case "shard": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Shard`;
-      case "elemental": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Elemental`;
-      case "item": return `${reward.quantity}x ${ITEM_META[reward.subtype]?.label || reward.subtype}`;
-      default: return "Mystery Reward";
-    }
-  };
-
-  const getRewardColor = () => {
-    switch (reward?.type) { case "coin": return "text-yellow-400"; case "shard": return "text-blue-400"; case "elemental": return "text-purple-400"; case "item": return "text-red-400"; default: return "text-white"; }
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-sm w-full p-6"
-            onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-6">Mystery Chest</h2>
-
-              <motion.div animate={isOpening ? { rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.1, 1] } : {}}
-                transition={{ duration: 0.5, repeat: isOpening ? Infinity : 0 }} className="mb-6">
-                <img src={isOpening ? GAME_ASSETS.mysteryboxOpened : GAME_ASSETS.mysteryboxClosed}
-                  alt="chest" className="w-32 h-32 object-contain mx-auto" />
-              </motion.div>
-
-              <AnimatePresence mode="wait">
-                {reward && (
-                  <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
-                    className="mb-4">
-                    <div className="mb-2 flex justify-center">{getRewardIcon()}</div>
-                    <div className={`text-xl font-black ${getRewardColor()}`}>{getRewardLabel()}</div>
-                    {reward.type !== "error" && <div className="text-xs text-zinc-500 mt-1">Added to your inventory</div>}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {!reward && (
-                <Button size="lg" className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 font-bold"
-                  disabled={!canOpen || isOpening} onClick={handleOpen}>
-                  {isOpening ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin" /> Opening…</span>
-                    : canOpen ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4" /> Open Chest</span>
-                      : <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {cooldownMinutes}m cooldown</span>}
-                </Button>
-              )}
-
-              {reward && (
-                <Button variant="outline" className="w-full mt-2" onClick={onClose}>Close</Button>
-              )}
-
-              <div className="mt-6 space-y-1.5">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-600 text-center mb-2">Drop Rates</div>
-                {[
-                  { label: "Coins", color: "bg-yellow-500/40", pct: "50%", text: "text-yellow-400" },
-                  { label: "Shards", color: "bg-blue-500/40", pct: "25%", text: "text-blue-400" },
-                  { label: "Items", color: "bg-red-500/40", pct: "20%", text: "text-red-400" },
-                  { label: "Elementals", color: "bg-purple-500/40", pct: "5%", text: "text-purple-400" },
-                ].map(({ label, color, pct, text }) => (
-                  <div key={label}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={text}>{label}</span><span className="text-zinc-500">{pct}</span>
-                    </div>
-                    <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className={`h-full ${color} rounded-full`} style={{ width: pct }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -446,7 +460,6 @@ export default function WaitingPhase({
   queryClient: any;
 }) {
   const [, setLocation] = useLocation();
-  const [chestOpen, setChestOpen] = useState(false);
 
   const userId = session.user.id;
   const myGuildId = fullProfile?.guild_id;
@@ -534,29 +547,22 @@ export default function WaitingPhase({
               The 20 guilds have been selected. The protocol has begun. Fight for your guild, climb the rankings, and claim glory.
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <motion.button
                 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={() => setLocation("/battlefield")}
-                className="group flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold text-sm shadow-lg shadow-red-900/30 transition-all">
-                <Swords className="w-4 h-4" />
-                Enter Guild Wars
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                className="px-8 py-3.5 rounded-xl bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 text-white font-bold text-sm transition-all"
+              >
+                Guild Wars
               </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => setChestOpen(true)}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 font-bold text-sm transition-all">
-                <img src={GAME_ASSETS.mysteryboxClosed} alt="chest" className="w-5 h-5 object-contain" />
-                Open Chest
-              </motion.button>
+              <InlineChest userId={userId} profile={fullProfile} />
             </div>
 
             <div className={`mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border ${el?.border ?? "border-white/10"} ${el?.bg ?? "bg-white/5"} backdrop-blur-md text-sm`}>
               <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               <span className={el?.text ?? "text-white/50"}>
-                {el ? `${el.label} soul bound` : "Guild member active"}
+                {el ? `${el.label} element bound` : "Guild member active"}
               </span>
             </div>
           </motion.div>
@@ -597,25 +603,8 @@ export default function WaitingPhase({
           <GuideSection />
         </div>
 
-        <div className="px-4 sm:px-8 py-12 max-w-md mx-auto text-center">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            onClick={() => setChestOpen(true)}
-            className="cursor-pointer bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-8 hover:border-yellow-500/30 transition-all"
-          >
-            <img src={GAME_ASSETS.mysteryboxClosed} alt="chest" className="w-24 h-24 object-contain mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-white mb-2">Mystery Chest</h3>
-            <p className="text-sm text-zinc-500 mb-4">Open every 2 hours for free. Find coins, shards, items, and rare elementals.</p>
-            <Button className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 font-bold">
-              <Sparkles className="w-4 h-4 mr-2" /> Open Now
-            </Button>
-          </motion.div>
-        </div>
-
         <div className="h-20" />
       </div>
-
-      <ChestModal isOpen={chestOpen} onClose={() => setChestOpen(false)} userId={userId} profile={fullProfile} />
 
       {checkInOpen && (
         <DailyCheckIn
