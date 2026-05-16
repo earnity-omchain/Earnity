@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 
+// ── Guild queries ──────────────────────────────────────────
+
 export async function getGuildsWithRanking() {
   const { data, error } = await supabase.rpc("get_guilds_with_ranking");
   if (error) {
@@ -7,14 +9,6 @@ export async function getGuildsWithRanking() {
     throw error;
   }
   return data || [];
-}
-
-export async function openChest(userId: string) {
-  const { data, error } = await supabase.rpc("open_chest", {
-    p_user_id: userId,
-  });
-  if (error) throw error;
-  return data as { reward: { type: string; quantity: number; subtype?: string } };
 }
 
 export async function getGuildMembers(guildId: string) {
@@ -26,6 +20,8 @@ export async function getGuildMembers(guildId: string) {
   if (error) throw error;
   return data || [];
 }
+
+// ── Inventory & items ──────────────────────────────────────
 
 export async function getInventory(userId: string) {
   const { data, error } = await supabase
@@ -65,6 +61,8 @@ export async function getUserMP(userId: string) {
   return data?.mp ?? 100;
 }
 
+// ── Actions ────────────────────────────────────────────────
+
 export async function attackGuild(userId: string, targetId: string, itemType: string) {
   const { data, error } = await supabase.rpc("attack_guild", {
     p_user_id: userId,
@@ -91,4 +89,21 @@ export async function useMPPotion(userId: string) {
   });
   if (error) throw error;
   return data as { success: boolean; message: string };
+}
+
+// ── Chest ─────────────────────────────────────────────────
+
+export async function openChest(userId: string) {
+  const { data, error } = await supabase.rpc("open_chest", {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data as { 
+    reward: { 
+      type: string; 
+      quantity: number; 
+      subtype?: string;
+      message?: string;
+    } 
+  };
 }
