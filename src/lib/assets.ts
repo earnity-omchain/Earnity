@@ -136,7 +136,23 @@ export const ELEMENT_META: Record<string, {
 export const LOGO = import.meta.env.BASE_URL + "logo.jpg";
 
 export function getGuildImage(guildName: string, element?: string): string {
+  // Exact match first
   if (GUILD_IMAGES[guildName]) return GUILD_IMAGES[guildName];
+  
+  // Case-insensitive match
+  const lower = guildName.toLowerCase();
+  const match = Object.keys(GUILD_IMAGES).find(
+    key => key.toLowerCase() === lower
+  );
+  if (match) return GUILD_IMAGES[match];
+
+  // Partial match (e.g. "e.g.jhembut" matches "jhembut")
+  const partial = Object.keys(GUILD_IMAGES).find(
+    key => lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)
+  );
+  if (partial) return GUILD_IMAGES[partial];
+
+  // Fallback to element image
   if (element && ELEMENT_META[element]) return ELEMENT_META[element].img;
   return GAME_ASSETS.seal2;
 }
