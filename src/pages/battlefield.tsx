@@ -15,11 +15,12 @@ import {
   getGuildCooldowns,
   getUserMP,
 } from "@/lib/supabase-gw";
+import { api } from "@/lib/supabase";
 import {
   Swords, Shield, Heart, Zap, Trophy, Clock,
   ArrowLeft, Flame, Droplets, Mountain, Wind, TreePine,
   CloudLightning, AlertTriangle, CheckCircle, X, ChevronRight,
-  Users, Crosshair, Activity, MapPin, Sparkles, Target,
+  Users, Crosshair, Activity, MapPin, Sparkles, Target, LogIn, LogOut,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ const ELEMENT_ICONS: Record<string, React.ReactNode> = {
   lightning: <CloudLightning className="w-3.5 h-3.5" />,
   lighting: <CloudLightning className="w-3.5 h-3.5" />,
   wind: <Wind className="w-3.5 h-3.5" />,
+  ice: <Sparkles className="w-3.5 h-3.5" />,
 };
 
 const ITEM_COLORS: Record<string, string> = {
@@ -54,8 +56,6 @@ const ITEM_COLORS: Record<string, string> = {
   [GAME_ITEMS.MP_POTION]: "#eab308",
 };
 
-// Element key → actual CSS color for glow/bar (since Tailwind class names
-// can't be used directly as CSS color values)
 const ELEMENT_COLORS: Record<string, string> = {
   fire: "#f97316",
   water: "#38bdf8",
@@ -63,7 +63,8 @@ const ELEMENT_COLORS: Record<string, string> = {
   rock: "#a8a29e",
   lightning: "#facc15",
   lighting: "#facc15",
-  wind: "#e2e8f0",
+  wind: "#7dd3fc",
+  ice: "#bae6fd",
 };
 
 const TABS = [
@@ -73,6 +74,20 @@ const TABS = [
 ] as const;
 
 type TabId = "battlefield" | "arsenal" | "log";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function daysInGuild(joinedAt: string | null | undefined): number {
+  if (!joinedAt) return 0;
+  return Math.floor((Date.now() - new Date(joinedAt).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function canLeaveGuild(joinedAt: string | null | undefined): boolean {
+  return daysInGuild(joinedAt) >= 7;
+}
+
+function daysUntilLeave(joinedAt: string | null | undefined): number {
+  return Math.max(0, 7 - daysInGuild(joinedAt));
+}
 
 // ── Attack Particles Canvas ───────────────────────────────────────────────────
 function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string }) {
@@ -110,10 +125,8 @@ function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string })
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       particlesRef.current = particlesRef.current.filter(p => p.life > 0);
       particlesRef.current.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.95;
-        p.vy *= 0.95;
+        p.x += p.vx; p.y += p.vy;
+        p.vx *= 0.95; p.vy *= 0.95;
         p.life -= 0.025;
         ctx.save();
         ctx.globalAlpha = p.life;
@@ -125,20 +138,13 @@ function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string })
         ctx.fill();
         ctx.restore();
       });
-      if (particlesRef.current.length > 0) {
-        animRef.current = requestAnimationFrame(animate);
-      }
+      if (particlesRef.current.length > 0) animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animRef.current);
   }, [trigger, color]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none z-30"
-    />
-  );
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-30" />;
 }
 
 // ── HP Bar ────────────────────────────────────────────────────────────────────
@@ -156,10 +162,7 @@ function HPBar({ value, max = 100, animate: shouldAnimate = false, className = "
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={{ duration: shouldAnimate ? 0.8 : 0.3, ease: "easeOut" }}
-        style={{
-          background: `linear-gradient(90deg, ${color}aa, ${color})`,
-          boxShadow: `0 0 6px ${glow}`,
-        }}
+        style={{ background: `linear-gradient(90deg, ${color}aa, ${color})`, boxShadow: `0 0 6px ${glow}` }}
       />
       {pct < 30 && (
         <motion.div
@@ -173,8 +176,7 @@ function HPBar({ value, max = 100, animate: shouldAnimate = false, className = "
   );
 }
 
-// ── MP / Energy Bar ─────────────────────────────────────────────────────────
-// FIX: color is now always a valid CSS color string (hex), never a Tailwind class
+// ── Energy Bar ────────────────────────────────────────────────────────────────
 function EnergyBar({ value, max = 100, color = "#a855f7", className = "" }: {
   value: number; max?: number; color?: string; className?: string;
 }) {
@@ -185,10 +187,7 @@ function EnergyBar({ value, max = 100, color = "#a855f7", className = "" }: {
         className="h-full rounded-full"
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.5 }}
-        style={{
-          background: `linear-gradient(90deg, ${color}88, ${color})`,
-          boxShadow: `0 0 6px ${color}66`,
-        }}
+        style={{ background: `linear-gradient(90deg, ${color}88, ${color})`, boxShadow: `0 0 6px ${color}66` }}
       />
     </div>
   );
@@ -203,9 +202,7 @@ function ConfirmAttackModal({ guild, itemType, onConfirm, onCancel, isPending }:
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[300] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
       onClick={onCancel}
@@ -252,9 +249,7 @@ function ConfirmAttackModal({ guild, itemType, onConfirm, onCancel, isPending }:
               <div className="font-bold text-white text-sm">{meta.label}</div>
               <div className="text-xs text-white/40">{meta.description}</div>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-black text-red-400">{meta.mpCost} MP</div>
-            </div>
+            <div className="text-sm font-black text-red-400">{meta.mpCost} MP</div>
           </div>
 
           <div className="flex gap-3">
@@ -263,7 +258,7 @@ function ConfirmAttackModal({ guild, itemType, onConfirm, onCancel, isPending }:
               Cancel
             </button>
             <button onClick={onConfirm} disabled={isPending}
-              className="flex-1 py-2.5 rounded-xl text-white font-black text-sm transition-all relative overflow-hidden"
+              className="flex-1 py-2.5 rounded-xl text-white font-black text-sm transition-all"
               style={{
                 background: isPending ? "rgba(239,68,68,0.3)" : "linear-gradient(135deg, #dc2626, #ea580c)",
                 boxShadow: isPending ? "none" : "0 0 20px rgba(239,68,68,0.4)",
@@ -288,7 +283,7 @@ function ConfirmAttackModal({ guild, itemType, onConfirm, onCancel, isPending }:
   );
 }
 
-// ── Attack Result Toast ───────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
 function AttackToast({ message, success, onDismiss }: {
   message: string; success: boolean; onDismiss: () => void;
 }) {
@@ -319,23 +314,14 @@ function AttackToast({ message, success, onDismiss }: {
   );
 }
 
-// ── Guild Building (Map Node) ─────────────────────────────────────────────────
-function GuildBuilding({
-  guild,
-  index,
-  isMyGuild,
-  isSelected,
-  onClick,
-  attackParticle,
-}: {
+// ── Guild Building ────────────────────────────────────────────────────────────
+function GuildBuilding({ guild, index, isMyGuild, isSelected, onClick, attackParticle }: {
   guild: any; index: number; isMyGuild: boolean; isSelected: boolean;
   onClick: () => void; attackParticle: boolean;
 }) {
   const el = ELEMENT_META[guild.element] || ELEMENT_META.fire;
-  // FIX: use ELEMENT_COLORS map for actual CSS color values
   const elColor = ELEMENT_COLORS[guild.element] || "#f97316";
   const shieldActive = guild.shield_active_until && new Date(guild.shield_active_until) > new Date();
-  const guildImg = getGuildImage(guild.name, guild.element);
   const hp = guild.hp ?? 100;
 
   const rankColors = [
@@ -352,41 +338,33 @@ function GuildBuilding({
       layout
       initial={{ opacity: 0, y: 30, scale: 0.9 }}
       animate={{
-        opacity: 1,
-        y: 0,
+        opacity: 1, y: 0,
         scale: isSelected ? 1.05 : 1,
-        filter: isSelected
-          ? `drop-shadow(0 0 20px ${elColor})`
-          : `drop-shadow(0 0 8px ${elColor}44)`,
+        filter: isSelected ? `drop-shadow(0 0 20px ${elColor})` : `drop-shadow(0 0 8px ${elColor}44)`,
       }}
       transition={{ delay: index * 0.03, type: "spring", damping: 18 }}
       onClick={onClick}
-      className="relative cursor-pointer group select-none"
+      className="relative cursor-pointer select-none"
       style={{ fontFamily: "'Space Mono', monospace" }}
     >
-      {/* Attack particles overlay */}
       {attackParticle && (
         <div className="absolute inset-0 z-30 pointer-events-none overflow-visible">
           <ParticleCanvas trigger={attackParticle} color={ITEM_COLORS[GAME_ITEMS.NUKE]} />
         </div>
       )}
 
-      {/* Building Card */}
       <div
         className="relative rounded-2xl overflow-hidden transition-all duration-300"
         style={{
           background: isSelected
             ? `linear-gradient(180deg, ${elColor}18, rgba(5,5,5,0.95))`
             : "linear-gradient(180deg, rgba(20,20,20,0.9), rgba(5,5,5,0.95))",
-          border: isSelected
-            ? `1px solid ${elColor}66`
-            : `1px solid ${rankStyle.border}`,
+          border: isSelected ? `1px solid ${elColor}66` : `1px solid ${rankStyle.border}`,
           boxShadow: isSelected
             ? `0 0 40px ${elColor}33, inset 0 0 20px ${elColor}11`
             : `0 4px 20px rgba(0,0,0,0.6)`,
         }}
       >
-        {/* Shield shimmer overlay */}
         {shieldActive && (
           <motion.div
             className="absolute inset-0 pointer-events-none z-10"
@@ -395,8 +373,6 @@ function GuildBuilding({
             style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.25), transparent 60%)" }}
           />
         )}
-
-        {/* Selected pulse ring */}
         {isSelected && (
           <motion.div
             className="absolute inset-0 pointer-events-none rounded-2xl z-0"
@@ -406,16 +382,13 @@ function GuildBuilding({
           />
         )}
 
-        {/* Rank Badge */}
         <div
-          className="absolute top-2 left-2 z-20 w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0 shadow-lg"
+          className="absolute top-2 left-2 z-20 w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg"
           style={{ background: rankStyle.bg, border: `1px solid ${rankStyle.border}`, color: rankStyle.text }}
         >
-          {/* FIX: use index + 1 for rank, not guild.rank field */}
           {index + 1}
         </div>
 
-        {/* Shield Badge */}
         {shieldActive && (
           <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-blue-500/20 border border-blue-500/40 flex items-center gap-1">
             <Shield className="w-2.5 h-2.5 text-blue-400" />
@@ -423,65 +396,49 @@ function GuildBuilding({
           </div>
         )}
 
-        {/* YOURS Badge */}
         {isMyGuild && (
           <div
-            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap"
             style={{ background: `${elColor}22`, border: `1px solid ${elColor}55`, color: elColor }}
           >
             YOUR GUILD
           </div>
         )}
 
-        {/* Building Image */}
         <div className="relative p-4 pb-2 flex flex-col items-center">
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-20 h-3 bg-black/60 rounded-[100%] blur-sm" />
-
           <motion.div
             className="relative w-24 h-24 md:w-28 md:h-28"
             animate={isSelected ? { y: [0, -4, 0] } : {}}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
             <img
-              src={guildImg}
+              src={getGuildImage(guild.name, guild.element)}
               alt={guild.name}
               className="w-full h-full object-contain drop-shadow-2xl"
-              style={{
-                filter: `drop-shadow(0 0 12px ${elColor}66) drop-shadow(0 4px 6px rgba(0,0,0,0.8))`,
-              }}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = el.img;
-              }}
+              style={{ filter: `drop-shadow(0 0 12px ${elColor}66) drop-shadow(0 4px 6px rgba(0,0,0,0.8))` }}
+              onError={(e) => { (e.target as HTMLImageElement).src = el.img; }}
             />
           </motion.div>
 
-          {/* HP Bar */}
           <div className="w-full mt-2 space-y-1">
             <div className="flex items-center gap-1.5">
               <Heart className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
               <HPBar value={hp} className="flex-1" />
               <span className="text-[9px] font-mono text-white/50 w-7 text-right">{hp}%</span>
             </div>
-            {/* FIX: EnergyBar now receives a real hex color */}
             <div className="flex items-center gap-1.5">
               <Zap className="w-2.5 h-2.5 text-purple-400 flex-shrink-0" />
-              <EnergyBar
-                value={Math.min(100, (guild.ranking_score || 0) / 100)}
-                color={elColor}
-                className="flex-1"
-              />
+              <EnergyBar value={Math.min(100, (guild.ranking_score || 0) / 100)} color={elColor} className="flex-1" />
             </div>
           </div>
         </div>
 
-        {/* Guild Info Footer */}
         <div className="px-3 pb-3 pt-1 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-0.5">
-            <span className="text-xs font-black text-white tracking-tight truncate max-w-[90%]">
-              {guild.name}
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-2 text-[10px]">
+          <span className="text-xs font-black text-white tracking-tight truncate block max-w-[90%] mx-auto">
+            {guild.name}
+          </span>
+          <div className="flex items-center justify-center gap-2 text-[10px] mt-0.5">
             <span className="flex items-center gap-1" style={{ color: elColor }}>
               {ELEMENT_ICONS[guild.element]} {el.label}
             </span>
@@ -497,24 +454,17 @@ function GuildBuilding({
 }
 
 // ── Guild Detail Panel ────────────────────────────────────────────────────────
-// FIX: Responsive — bottom sheet on mobile, right side panel on desktop
 function GuildDetailPanel({
-  guild,
-  isMyGuild,
-  myGuildId,
-  session,
-  currentMP,
-  inventory,
-  myGuildCooldowns,
-  attackMutation,
-  defenseMutation,
-  mpPotionMutation,
-  onAttackItemClick,
-  onClose,
+  guild, isMyGuild, myGuildId, session, profile,
+  currentMP, inventory, myGuildCooldowns,
+  attackMutation, defenseMutation, mpPotionMutation,
+  joinMutation, leaveMutation,
+  onAttackItemClick, onClose,
 }: {
-  guild: any; isMyGuild: boolean; myGuildId?: string; session: any;
+  guild: any; isMyGuild: boolean; myGuildId?: string; session: any; profile: any;
   currentMP: number; inventory: any[]; myGuildCooldowns: any[];
   attackMutation: any; defenseMutation: any; mpPotionMutation: any;
+  joinMutation: any; leaveMutation: any;
   onAttackItemClick: (item: string) => void;
   onClose: () => void;
 }) {
@@ -529,80 +479,69 @@ function GuildDetailPanel({
   const isOnCooldown = (itemType: string) => {
     if (!myGuildCooldowns) return false;
     const cd = myGuildCooldowns.find((c: any) => c.item_type === itemType);
-    return cd ? new Date((cd as any).expires_at) > new Date() : false;
+    return cd ? new Date(cd.expires_at) > new Date() : false;
   };
 
   const canAttack = !isMyGuild && !shieldActive && !!myGuildId;
 
+  // Join/Leave logic
+  const isInAnyGuild = !!myGuildId;
+  const isInThisGuild = myGuildId === guild.id;
+  const joinedAt = profile?.guild_joined_at;
+  const canLeave = canLeaveGuild(joinedAt);
+  const daysLeft = daysUntilLeave(joinedAt);
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[250] flex md:justify-end md:items-stretch items-end justify-center"
       style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
-      {/* 
-        MOBILE: slides up from bottom (full width, 85vh)
-        DESKTOP: slides in from right (400px, full height)
-      */}
       <motion.div
         initial={{ x: 0, y: "100%" }}
         animate={{ x: 0, y: 0 }}
         exit={{ x: 0, y: "100%" }}
-        // On md+ override to slide from right
         className="w-full md:w-[400px] h-[85vh] md:h-full bg-[#080808] md:border-l md:border-t-0 border-t border-white/10 shadow-2xl overflow-y-auto rounded-t-3xl md:rounded-none"
-        style={{
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.8)",
-          // On desktop the animation comes from the right, handled via CSS only above
-        }}
+        style={{ boxShadow: "0 -10px 40px rgba(0,0,0,0.8)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Drag handle pill — mobile only */}
+        {/* Drag handle — mobile */}
         <div className="flex justify-center pt-3 pb-1 md:hidden">
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
 
-        {/* Header Image */}
+        {/* Header */}
         <div className="relative h-40 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#080808] z-10" />
           <img src={guildImg} alt={guild.name} className="w-full h-full object-cover opacity-40" />
           <div className="absolute top-4 right-4 z-20">
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white transition-colors"
-            >
+            <button onClick={onClose}
+              className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="absolute bottom-4 left-5 z-20">
-            <div className="flex items-center gap-2">
-              <div
-                className="p-1.5 rounded-lg"
-                style={{ border: `1px solid ${elColor}55`, background: `${elColor}22` }}
-              >
-                {ELEMENT_ICONS[guild.element]}
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-white">{guild.name}</h2>
-                <div className="text-xs font-bold uppercase tracking-wider" style={{ color: elColor }}>
-                  {el.label} Guild
-                </div>
+          <div className="absolute bottom-4 left-5 z-20 flex items-center gap-2">
+            <div className="p-1.5 rounded-lg" style={{ border: `1px solid ${elColor}55`, background: `${elColor}22` }}>
+              {ELEMENT_ICONS[guild.element]}
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">{guild.name}</h2>
+              <div className="text-xs font-bold uppercase tracking-wider" style={{ color: elColor }}>
+                {el.label} Guild
               </div>
             </div>
           </div>
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Stats Grid */}
+          {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-white/3 border border-white/8">
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Guild Master</div>
               <div className="text-sm font-bold text-white flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
-                {/* FIX: fall back to guild_master_id if guild_master not returned */}
-                {guild.guild_master || guild.guild_master_id || "Unknown"}
+                {guild.guild_master || guild.guild_master_id?.slice(0, 8) || "Unknown"}
               </div>
             </div>
             <div className="p-3 rounded-xl bg-white/3 border border-white/8">
@@ -621,14 +560,12 @@ function GuildDetailPanel({
             <div className="p-3 rounded-xl bg-white/3 border border-white/8">
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Rank</div>
               <div className="text-sm font-bold text-yellow-400 flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5" />
-                {/* FIX: rank is not in the query, show ranking_score rank via display */}
-                #{guild._rank ?? "?"}
+                <Trophy className="w-3.5 h-3.5" />#{guild._rank ?? "?"}
               </div>
             </div>
           </div>
 
-          {/* HP & Shield Status */}
+          {/* HP */}
           <div
             className="p-4 rounded-xl space-y-3"
             style={{
@@ -646,14 +583,90 @@ function GuildDetailPanel({
                 <Shield className="w-4 h-4" /> Shield Active — Attacks are being deflected
               </div>
             )}
-            {isMyGuild && (
-              <div className="flex items-center gap-2 text-xs text-yellow-400 mt-2 p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-                <AlertTriangle className="w-4 h-4" /> You cannot attack your own guild
-              </div>
-            )}
           </div>
 
-          {/* Attack Section */}
+          {/* ── JOIN GUILD SECTION ── */}
+          {session && !isInAnyGuild && (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-green-400 mb-3 flex items-center gap-2">
+                <LogIn className="w-3 h-3" /> Join Guild
+              </div>
+              <button
+                onClick={() => joinMutation.mutate(guild.id)}
+                disabled={joinMutation.isPending}
+                className="w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all"
+                style={{
+                  background: joinMutation.isPending
+                    ? "rgba(34,197,94,0.2)"
+                    : "linear-gradient(135deg, #16a34a, #15803d)",
+                  boxShadow: joinMutation.isPending ? "none" : "0 0 20px rgba(34,197,94,0.3)",
+                  color: "white",
+                }}
+              >
+                {joinMutation.isPending ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                    <Zap className="w-4 h-4" />
+                  </motion.div>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    Join {guild.name}
+                  </>
+                )}
+              </button>
+              <p className="text-[10px] text-white/25 text-center mt-2">
+                You cannot leave for 7 days after joining
+              </p>
+            </div>
+          )}
+
+          {/* ── LEAVE GUILD SECTION (only on own guild panel) ── */}
+          {session && isInThisGuild && (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
+                <LogOut className="w-3 h-3" /> Leave Guild
+              </div>
+              {canLeave ? (
+                <button
+                  onClick={() => leaveMutation.mutate()}
+                  disabled={leaveMutation.isPending}
+                  className="w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all border border-red-500/30"
+                  style={{
+                    background: leaveMutation.isPending ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.08)",
+                    color: "#f87171",
+                  }}
+                >
+                  {leaveMutation.isPending ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                      <Zap className="w-4 h-4" />
+                    </motion.div>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4" />
+                      Leave Guild
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div
+                  className="w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2 border border-white/5"
+                  style={{ background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.25)" }}
+                >
+                  <Clock className="w-4 h-4" />
+                  Can leave in {daysLeft} day{daysLeft !== 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── ALREADY IN DIFFERENT GUILD ── */}
+          {session && isInAnyGuild && !isInThisGuild && !isMyGuild && (
+            <div className="text-center py-3 text-white/25 text-xs border border-white/5 rounded-xl bg-white/2">
+              Leave your current guild first to join another
+            </div>
+          )}
+
+          {/* ── ATTACK SECTION ── */}
           {session && myGuildId && !isMyGuild && (
             <div>
               <div className="text-[10px] uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
@@ -679,10 +692,8 @@ function GuildDetailPanel({
                         cursor: enabled ? "pointer" : "not-allowed",
                       }}
                     >
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: `${color}15`, border: `1px solid ${color}30` }}
-                      >
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
                         <img src={meta.image} alt={meta.label} className="w-7 h-7 object-contain" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -693,17 +704,12 @@ function GuildDetailPanel({
                         <div className="text-[10px] text-white/35 mt-0.5">{meta.description}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <Zap className="w-2.5 h-2.5 text-purple-400" />
-                          <span
-                            className="text-[10px] font-mono"
-                            style={{ color: hasMP ? color : "#ef4444" }}
-                          >
+                          <span className="text-[10px] font-mono" style={{ color: hasMP ? color : "#ef4444" }}>
                             {meta.mpCost} MP
                           </span>
                         </div>
                       </div>
-                      {enabled && (
-                        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color }} />
-                      )}
+                      {enabled && <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color }} />}
                     </button>
                   );
                 })}
@@ -711,7 +717,7 @@ function GuildDetailPanel({
             </div>
           )}
 
-          {/* Defense Section (only if my guild) */}
+          {/* ── DEFENSE SECTION ── */}
           {isMyGuild && (
             <div>
               <div className="text-[10px] uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
@@ -724,15 +730,12 @@ function GuildDetailPanel({
                   const onCooldown = itemKey !== GAME_ITEMS.MP_POTION && isOnCooldown(itemKey);
                   const canUse = qty > 0 && !onCooldown;
                   return (
-                    <div
-                      key={itemKey}
-                      className="flex items-center gap-3 p-2.5 rounded-lg"
+                    <div key={itemKey} className="flex items-center gap-3 p-2.5 rounded-lg"
                       style={{
                         background: canUse ? "rgba(59,130,246,0.05)" : "rgba(255,255,255,0.02)",
                         border: `1px solid ${canUse ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.05)"}`,
                         opacity: qty === 0 ? 0.4 : 1,
-                      }}
-                    >
+                      }}>
                       <img src={meta.image} alt={meta.label} className="w-8 h-8 object-contain flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-black text-white">{meta.label}</div>
@@ -745,12 +748,8 @@ function GuildDetailPanel({
                             if (itemKey === GAME_ITEMS.MP_POTION) mpPotionMutation.mutate();
                             else defenseMutation.mutate(itemKey);
                           }}
-                          className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
-                          style={{
-                            background: "rgba(59,130,246,0.2)",
-                            border: "1px solid rgba(59,130,246,0.3)",
-                            color: "#93c5fd",
-                          }}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider"
+                          style={{ background: "rgba(59,130,246,0.2)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}
                         >
                           Use
                         </button>
@@ -769,13 +768,7 @@ function GuildDetailPanel({
 
           {!session && (
             <div className="text-center py-6 text-white/30 text-sm border border-white/5 rounded-xl bg-white/3">
-              Sign in to declare war
-            </div>
-          )}
-
-          {!myGuildId && session && (
-            <div className="text-center py-6 text-white/30 text-sm border border-white/5 rounded-xl bg-white/3">
-              Join a guild to participate in wars
+              Sign in to join or attack guilds
             </div>
           )}
         </div>
@@ -801,10 +794,8 @@ function WarLogEntry({ attack, index }: { attack: any; index: number }) {
         border: `1px solid ${isNuke ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)"}`,
       }}
     >
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: `${color}15`, border: `1px solid ${color}30` }}
-      >
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
         <img src={meta?.image || ""} alt="" className="w-5 h-5 object-contain" />
       </div>
       <div className="flex-1 min-w-0">
@@ -838,7 +829,6 @@ export default function Battlefield() {
   const [confirmItem, setConfirmItem] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; success: boolean } | null>(null);
   const [attackedGuildId, setAttackedGuildId] = useState<string | null>(null);
-  // FIX: explicit TabId type, no double << generic syntax
   const [activeTab, setActiveTab] = useState<TabId>("battlefield");
 
   const userId = profile?.id;
@@ -851,7 +841,6 @@ export default function Battlefield() {
     refetchInterval: 30000,
   });
 
-  // FIX: attach _rank to each guild from array index for display use
   const rankedGuilds = guilds?.map((g: any, i: number) => ({ ...g, _rank: i + 1 }));
 
   const { data: inventory } = useQuery({
@@ -922,7 +911,60 @@ export default function Battlefield() {
     },
   });
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // JOIN mutation — sets guild_id and records join timestamp
+  const joinMutation = useMutation({
+    mutationFn: async (guildId: string) => {
+      if (!userId) throw new Error("Not authenticated");
+      const { data, error } = await (await import("@/lib/supabase")).supabase
+        .from("profiles")
+        .update({
+          guild_id: guildId,
+          guild_joined_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+        .is("guild_id", null)
+        .select()
+        .single();
+      if (error) throw error;
+      if (!data) throw new Error("Already in a guild");
+      return data;
+    },
+    onSuccess: () => {
+      setToast({ message: "You joined the guild!", success: true });
+      queryClient.invalidateQueries({ queryKey: ["guilds-ranked"] });
+      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+      setSelectedGuild(null);
+    },
+    onError: (err: any) => {
+      setToast({ message: err.message || "Failed to join guild", success: false });
+    },
+  });
+
+  // LEAVE mutation — clears guild_id, keeps joined_at for audit
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
+      // Check 7-day lock
+      if (!canLeaveGuild((profile as any)?.guild_joined_at)) {
+        throw new Error(`You must wait ${daysUntilLeave((profile as any)?.guild_joined_at)} more days to leave`);
+      }
+      const { error } = await (await import("@/lib/supabase")).supabase
+        .from("profiles")
+        .update({ guild_id: null })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setToast({ message: "You left the guild.", success: true });
+      queryClient.invalidateQueries({ queryKey: ["guilds-ranked"] });
+      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+      setSelectedGuild(null);
+    },
+    onError: (err: any) => {
+      setToast({ message: err.message || "Failed to leave guild", success: false });
+    },
+  });
+
   const getItemQty = (type: string) =>
     inventory?.find((i: any) => i.item_type === type)?.quantity || 0;
 
@@ -930,67 +972,43 @@ export default function Battlefield() {
     guild.shield_active_until && new Date(guild.shield_active_until) > new Date();
 
   const myGuild = rankedGuilds?.find((g: any) => g.id === myGuildId);
-  const mpPercent = (currentMP / MP_MAX) * 100;
 
   return (
-    <div
-      className="min-h-screen text-white"
-      style={{ background: "#050505", fontFamily: "'Space Mono', 'Courier New', monospace" }}
-    >
-      {/* ── Background ──────────────────────────────────────────────────────── */}
+    <div className="min-h-screen text-white"
+      style={{ background: "#050505", fontFamily: "'Space Mono', 'Courier New', monospace" }}>
+
+      {/* Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-10"
-          style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(239,68,68,0.04) 0%, transparent 60%)" }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse at 80% 50%, rgba(168,85,247,0.03) 0%, transparent 60%)" }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.03]"
+        <div className="absolute inset-0 bg-cover bg-center opacity-10"
+          style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }} />
+        <div className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(239,68,68,0.04) 0%, transparent 60%)" }} />
+        <div className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at 80% 50%, rgba(168,85,247,0.03) 0%, transparent 60%)" }} />
+        <div className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)",
+            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)",
             backgroundSize: "100% 3px",
-          }}
-        />
+          }} />
       </div>
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav
-        className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-4"
-        style={{
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(0,0,0,0.6)",
-          backdropFilter: "blur(20px)",
-        }}
-      >
-        <button
-          onClick={() => setLocation("/")}
-          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm"
-        >
+      {/* Nav */}
+      <nav className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-4"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(20px)" }}>
+        <button onClick={() => setLocation("/")}
+          className="flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm">
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:block">Back</span>
         </button>
-
         <div className="flex items-center gap-3">
           <motion.div animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity }}>
             <Swords className="w-5 h-5 text-red-500" />
           </motion.div>
           <span className="font-black text-sm uppercase tracking-[0.2em] text-white">Guild Wars</span>
-          <motion.div
-            animate={{ opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-          >
+          <motion.div animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity, delay: 1 }}>
             <Swords className="w-5 h-5 text-red-500" />
           </motion.div>
         </div>
-
         <div className="flex items-center gap-2">
           <motion.div
             className="w-1.5 h-1.5 rounded-full bg-red-500"
@@ -1001,15 +1019,10 @@ export default function Battlefield() {
         </div>
       </nav>
 
-      {/* ── Player Status Bar ────────────────────────────────────────────────── */}
+      {/* Player Status Bar */}
       {session && profile && (
-        <div
-          className="relative z-10 px-5 sm:px-8 py-3"
-          style={{
-            borderBottom: "1px solid rgba(255,255,255,0.04)",
-            background: "rgba(0,0,0,0.4)",
-          }}
-        >
+        <div className="relative z-10 px-5 sm:px-8 py-3"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,0,0,0.4)" }}>
           <div className="max-w-7xl mx-auto flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-3 flex-1 min-w-[180px]">
               <Zap className="w-4 h-4 text-purple-400 flex-shrink-0" />
@@ -1021,9 +1034,7 @@ export default function Battlefield() {
                 <EnergyBar value={currentMP} max={MP_MAX} color="#a855f7" className="h-2" />
               </div>
             </div>
-
             <div className="w-px h-8 bg-white/5" />
-
             {myGuild && (
               <div className="flex items-center gap-3 flex-1 min-w-[160px]">
                 <Heart className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -1036,9 +1047,7 @@ export default function Battlefield() {
                 </div>
               </div>
             )}
-
             <div className="w-px h-8 bg-white/5" />
-
             <div className="flex items-center gap-2">
               <img src={GAME_ASSETS.coin} alt="coin" className="w-4 h-4 object-contain" />
               <div>
@@ -1048,7 +1057,6 @@ export default function Battlefield() {
                 </div>
               </div>
             </div>
-
             {myGuild && isShielded(myGuild) && (
               <>
                 <div className="w-px h-8 bg-white/5" />
@@ -1062,26 +1070,18 @@ export default function Battlefield() {
         </div>
       )}
 
-      {/* ── Tabs ────────────────────────────────────────────────────────────── */}
+      {/* Tabs */}
       <div className="relative z-10 px-5 sm:px-8 pt-5" style={{ maxWidth: "1400px", margin: "0 auto" }}>
-        <div
-          className="flex gap-1 mb-6 p-1 rounded-xl w-fit"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+        <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
+            <button key={id} onClick={() => setActiveTab(id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all"
               style={{
                 background: activeTab === id ? "rgba(239,68,68,0.15)" : "transparent",
                 border: activeTab === id ? "1px solid rgba(239,68,68,0.3)" : "1px solid transparent",
                 color: activeTab === id ? "#f87171" : "rgba(255,255,255,0.35)",
-              }}
-            >
+              }}>
               <Icon className="w-3.5 h-3.5" />
               <span className="hidden sm:block">{label}</span>
             </button>
@@ -1089,74 +1089,37 @@ export default function Battlefield() {
         </div>
       </div>
 
-      {/* ── Main Content ────────────────────────────────────────────────────── */}
-      <div
-        className="relative z-10 px-5 sm:px-8 pb-20"
-        style={{ maxWidth: "1400px", margin: "0 auto" }}
-      >
+      {/* Main Content */}
+      <div className="relative z-10 px-5 sm:px-8 pb-20" style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <AnimatePresence mode="wait">
 
-          {/* ═══ BATTLEFIELD TAB ══════════════════════════════════════════════ */}
+          {/* BATTLEFIELD */}
           {activeTab === "battlefield" && (
-            <motion.div
-              key="battlefield"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative"
-            >
-              <div
-                className="relative rounded-2xl overflow-hidden border border-white/5"
-                style={{
-                  background: "linear-gradient(180deg, rgba(10,10,10,0.6), rgba(5,5,5,0.8))",
-                  boxShadow: "inset 0 0 80px rgba(0,0,0,0.8)",
-                }}
-              >
-                {/* Map dot pattern */}
-                <div
-                  className="absolute inset-0 opacity-[0.04]"
-                  style={{
-                    backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`,
-                    backgroundSize: "24px 24px",
-                  }}
-                />
+            <motion.div key="battlefield" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="relative rounded-2xl overflow-hidden border border-white/5"
+                style={{ background: "linear-gradient(180deg, rgba(10,10,10,0.6), rgba(5,5,5,0.8))", boxShadow: "inset 0 0 80px rgba(0,0,0,0.8)" }}>
+                <div className="absolute inset-0 opacity-[0.04]"
+                  style={{ backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`, backgroundSize: "24px 24px" }} />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
 
-                {/* Staggered Guild Grid */}
                 <div className="relative z-10 p-4 md:p-8">
                   {isLoading && (
                     <div className="flex items-center justify-center py-32">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
                         <Swords className="w-8 h-8 text-red-500" />
                       </motion.div>
                     </div>
                   )}
-
                   {!isLoading && rankedGuilds && (
                     <div className="columns-2 md:columns-3 lg:columns-5 gap-4 md:gap-6 space-y-4 md:space-y-6">
                       {rankedGuilds.map((guild: any, index: number) => (
-                        <div
-                          key={guild.id}
-                          className="break-inside-avoid"
-                          style={{
-                            transform: index % 2 === 0 ? "translateY(0)" : "translateY(1rem)",
-                          }}
-                        >
+                        <div key={guild.id} className="break-inside-avoid"
+                          style={{ transform: index % 2 === 0 ? "translateY(0)" : "translateY(1rem)" }}>
                           <GuildBuilding
-                            guild={guild}
-                            index={index}
+                            guild={guild} index={index}
                             isMyGuild={myGuildId === guild.id}
                             isSelected={selectedGuild?.id === guild.id}
-                            onClick={() => {
-                              if (selectedGuild?.id === guild.id) {
-                                setSelectedGuild(null);
-                              } else {
-                                setSelectedGuild(guild);
-                              }
-                            }}
+                            onClick={() => setSelectedGuild(selectedGuild?.id === guild.id ? null : guild)}
                             attackParticle={attackedGuildId === guild.id}
                           />
                         </div>
@@ -1165,32 +1128,22 @@ export default function Battlefield() {
                   )}
                 </div>
               </div>
-
               {!isLoading && (!rankedGuilds || rankedGuilds.length === 0) && (
                 <div className="text-center py-24">
                   <MapPin className="w-10 h-10 text-white/15 mx-auto mb-4" />
-                  <div className="text-sm text-white/25 uppercase tracking-widest">
-                    No guilds on the battlefield
-                  </div>
+                  <div className="text-sm text-white/25 uppercase tracking-widest">No guilds on the battlefield</div>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* ═══ ARSENAL TAB ══════════════════════════════════════════════════ */}
+          {/* ARSENAL */}
           {activeTab === "arsenal" && (
-            <motion.div
-              key="arsenal"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
+            <motion.div key="arsenal" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Attack */}
-                <div
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(239,68,68,0.15)" }}
-                >
+                <div className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(239,68,68,0.15)" }}>
                   <div className="h-0.5 bg-gradient-to-r from-red-600 to-orange-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
@@ -1203,11 +1156,8 @@ export default function Battlefield() {
                         const qty = getItemQty(itemKey);
                         const color = ITEM_COLORS[itemKey];
                         return (
-                          <div
-                            key={itemKey}
-                            className="flex items-center gap-3 p-3 rounded-lg"
-                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}
-                          >
+                          <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
+                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
                             <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
                             <div className="flex-1">
                               <div className="font-black text-white text-sm">{meta.label}</div>
@@ -1217,9 +1167,7 @@ export default function Battlefield() {
                                 <span className="text-[10px] font-mono text-purple-400">{meta.mpCost} MP</span>
                               </div>
                             </div>
-                            <div className="text-2xl font-black tabular-nums" style={{ color }}>
-                              ×{qty}
-                            </div>
+                            <div className="text-2xl font-black tabular-nums" style={{ color }}>×{qty}</div>
                           </div>
                         );
                       })}
@@ -1228,10 +1176,8 @@ export default function Battlefield() {
                 </div>
 
                 {/* Defense */}
-                <div
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(59,130,246,0.15)" }}
-                >
+                <div className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(59,130,246,0.15)" }}>
                   <div className="h-0.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
@@ -1244,19 +1190,14 @@ export default function Battlefield() {
                         const qty = getItemQty(itemKey);
                         const color = ITEM_COLORS[itemKey];
                         return (
-                          <div
-                            key={itemKey}
-                            className="flex items-center gap-3 p-3 rounded-lg"
-                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}
-                          >
+                          <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
+                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
                             <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
                             <div className="flex-1">
                               <div className="font-black text-white text-sm">{meta.label}</div>
                               <div className="text-[10px] text-white/35 mt-0.5">{meta.description}</div>
                             </div>
-                            <div className="text-2xl font-black tabular-nums" style={{ color }}>
-                              ×{qty}
-                            </div>
+                            <div className="text-2xl font-black tabular-nums" style={{ color }}>×{qty}</div>
                           </div>
                         );
                       })}
@@ -1264,56 +1205,35 @@ export default function Battlefield() {
                   </div>
                 </div>
 
-                {/* Shards & Elementals */}
-                <div
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}
-                >
+                {/* Shards */}
+                <div className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}>
                   <div className="h-0.5 bg-gradient-to-r from-purple-600 to-pink-500" />
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <Zap className="w-4 h-4 text-purple-400" />
-                      <span className="text-xs uppercase tracking-widest text-purple-400">
-                        Shards & Elementals
-                      </span>
+                      <span className="text-xs uppercase tracking-widest text-purple-400">Shards & Elementals</span>
                     </div>
                     <div className="space-y-2">
                       {["fire", "water", "nature", "rock", "lightning", "wind"].map(elKey => {
                         const elMeta = ELEMENT_META[elKey];
-                        const shards =
-                          inventory?.find((i: any) => i.item_type === `shard_${elKey}`)?.quantity || 0;
-                        const elementals =
-                          inventory?.find((i: any) => i.item_type === `elemental_${elKey}`)?.quantity || 0;
+                        const shards = inventory?.find((i: any) => i.item_type === `shard_${elKey}`)?.quantity || 0;
+                        const elementals = inventory?.find((i: any) => i.item_type === `elemental_${elKey}`)?.quantity || 0;
                         const elHex = ELEMENT_COLORS[elKey] || "#a855f7";
                         return (
-                          <div
-                            key={elKey}
-                            className="flex items-center gap-2 p-2 rounded-lg"
-                            style={{
-                              background: `${elHex}11`,
-                              border: `1px solid ${elHex}33`,
-                            }}
-                          >
-                            <img src={elMeta.shard} alt={elKey} className="w-6 h-6 object-contain" />
+                          <div key={elKey} className="flex items-center gap-2 p-2 rounded-lg"
+                            style={{ background: `${elHex}11`, border: `1px solid ${elHex}33` }}>
+                            <img src={elMeta?.shard} alt={elKey} className="w-6 h-6 object-contain" />
                             <div className="flex-1">
-                              <span className="text-xs font-bold" style={{ color: elHex }}>
-                                {elMeta.label}
-                              </span>
+                              <span className="text-xs font-bold" style={{ color: elHex }}>{elMeta?.label}</span>
                               <div className="h-1 bg-black/30 rounded-full mt-1 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.min(100, (shards / 4) * 100)}%`,
-                                    background: elHex,
-                                  }}
-                                />
+                                <div className="h-full rounded-full"
+                                  style={{ width: `${Math.min(100, (shards / 4) * 100)}%`, background: elHex }} />
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-[10px] font-mono text-white/50">{shards} shards</div>
-                              <div className="text-[10px] font-mono text-purple-400">
-                                {elementals} elemental
-                              </div>
+                              <div className="text-[10px] font-mono text-purple-400">{elementals} elemental</div>
                             </div>
                           </div>
                         );
@@ -1325,19 +1245,11 @@ export default function Battlefield() {
             </motion.div>
           )}
 
-          {/* ═══ WAR LOG TAB ══════════════════════════════════════════════════ */}
+          {/* WAR LOG */}
           {activeTab === "log" && (
-            <motion.div
-              key="log"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="max-w-2xl"
-            >
-              <div
-                className="rounded-xl overflow-hidden"
-                style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
+            <motion.div key="log" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-2xl">
+              <div className="rounded-xl overflow-hidden"
+                style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="h-0.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -1345,26 +1257,17 @@ export default function Battlefield() {
                       <Activity className="w-4 h-4 text-red-400" />
                       <span className="text-xs uppercase tracking-widest text-red-400">War Log</span>
                     </div>
-                    <motion.div
-                      className="flex items-center gap-1.5"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
+                    <motion.div className="flex items-center gap-1.5"
+                      animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
                       <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
                       <span className="text-[9px] uppercase tracking-widest text-red-500">Live</span>
                     </motion.div>
                   </div>
-
-                  <div
-                    className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
-                    style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}
-                  >
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
+                    style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}>
                     {!attackLog?.length && (
                       <div className="text-center py-16">
-                        <motion.div
-                          animate={{ opacity: [0.3, 0.6, 0.3] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
+                        <motion.div animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
                           <Swords className="w-8 h-8 text-white/15 mx-auto mb-3" />
                         </motion.div>
                         <div className="text-xs text-white/20 uppercase tracking-widest">
@@ -1384,7 +1287,7 @@ export default function Battlefield() {
         </AnimatePresence>
       </div>
 
-      {/* ── Guild Detail Panel ───────────────────────────────────────────────── */}
+      {/* Guild Detail Panel */}
       <AnimatePresence>
         {selectedGuild && (
           <GuildDetailPanel
@@ -1392,44 +1295,38 @@ export default function Battlefield() {
             isMyGuild={myGuildId === selectedGuild.id}
             myGuildId={myGuildId}
             session={session}
+            profile={profile}
             currentMP={currentMP}
             inventory={inventory || []}
             myGuildCooldowns={myGuildCooldowns || []}
             attackMutation={attackMutation}
             defenseMutation={defenseMutation}
             mpPotionMutation={mpPotionMutation}
+            joinMutation={joinMutation}
+            leaveMutation={leaveMutation}
             onAttackItemClick={setConfirmItem}
             onClose={() => setSelectedGuild(null)}
           />
         )}
       </AnimatePresence>
 
-      {/* ── Confirm Attack Modal ─────────────────────────────────────────────── */}
+      {/* Confirm Attack Modal */}
       <AnimatePresence>
         {confirmItem && selectedGuild && (
           <ConfirmAttackModal
             guild={selectedGuild}
             itemType={confirmItem}
             isPending={attackMutation.isPending}
-            onConfirm={() => {
-              attackMutation.mutate({
-                targetId: selectedGuild.id,
-                itemType: confirmItem,
-              });
-            }}
+            onConfirm={() => attackMutation.mutate({ targetId: selectedGuild.id, itemType: confirmItem })}
             onCancel={() => setConfirmItem(null)}
           />
         )}
       </AnimatePresence>
 
-      {/* ── Toast ────────────────────────────────────────────────────────────── */}
+      {/* Toast */}
       <AnimatePresence>
         {toast && (
-          <AttackToast
-            message={toast.message}
-            success={toast.success}
-            onDismiss={() => setToast(null)}
-          />
+          <AttackToast message={toast.message} success={toast.success} onDismiss={() => setToast(null)} />
         )}
       </AnimatePresence>
     </div>
