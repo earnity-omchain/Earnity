@@ -21,7 +21,7 @@ export async function getGuildMembers(guildId: string) {
   return data || [];
 }
 
-// ── Inventory & items ──────────────────────────────────────
+// ── Inventory ──────────────────────────────────────────────
 
 export async function getInventory(userId: string) {
   const { data, error } = await supabase
@@ -31,6 +31,8 @@ export async function getInventory(userId: string) {
   if (error) throw error;
   return data || [];
 }
+
+// ── Attack log ─────────────────────────────────────────────
 
 export async function getAttackLog(limit = 50) {
   const { data, error } = await supabase
@@ -42,6 +44,8 @@ export async function getAttackLog(limit = 50) {
   return data || [];
 }
 
+// ── Cooldowns ──────────────────────────────────────────────
+
 export async function getGuildCooldowns(guildId: string) {
   const { data, error } = await supabase
     .from("guild_item_cooldowns")
@@ -51,14 +55,14 @@ export async function getGuildCooldowns(guildId: string) {
   return data || [];
 }
 
+// ── MP ─────────────────────────────────────────────────────
+
 export async function getUserMP(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("mp")
-    .eq("id", userId)
-    .single();
+  const { data, error } = await supabase.rpc("get_current_mp", {
+    p_user_id: userId,
+  });
   if (error) throw error;
-  return data?.mp ?? 100;
+  return data ?? 100;
 }
 
 // ── Actions ────────────────────────────────────────────────
@@ -106,4 +110,15 @@ export async function openChest(userId: string) {
       message?: string;
     } 
   };
+}
+
+// ── Crafting ───────────────────────────────────────────────
+
+export async function craftElemental(userId: string, element: string) {
+  const { data, error } = await supabase.rpc("craft_elemental", {
+    p_user_id: userId,
+    p_element: element,
+  });
+  if (error) throw error;
+  return data as { success: boolean; message: string; reward?: any };
 }
