@@ -39,6 +39,23 @@ export interface GuildCooldown {
   expires_at: string;
 }
 
+// ── Guild Ranking Type with Master Info ───────────────────────────────────────
+export interface GuildWithRanking {
+  id: string;
+  name: string;
+  element: string;
+  member_count: number;
+  total_score: number;
+  hp: number;
+  shield_active_until: string | null;
+  coin_balance: number;
+  ranking_score: number;
+  guild_master_id: string | null;
+  guild_master_username: string | null;
+  guild_master_avatar: string | null;
+  guild_master_element: string | null;
+}
+
 export async function getUserMP(userId: string): Promise<number> {
   const { data, error } = await supabase
     .from("profiles")
@@ -408,41 +425,93 @@ export async function craftElemental(
   return { success: true, message: `Crafted 1 ${element} elemental!` };
 }
 
-export async function getGuildsWithRanking(): Promise<
-  Array<{
-    id: string;
-    name: string;
-    element: string;
-    member_count: number;
-    total_score: number;
-    hp: number;
-    shield_active_until: string | null;
-    coin_balance: number;
-    ranking_score: number;
-  }>
-> {
+// ── Updated getGuildsWithRanking with Master Info ─────────────────────────────
+export async function getGuildsWithRanking(): Promise<GuildWithRanking[]> {
   const { data, error } = await supabase.rpc("get_guilds_ranked");
   if (error) {
+    // Fallback: manual join if RPC fails
     const { data: guilds, error: guildsError } = await supabase
       .from("guilds")
-      .select("id, name, element, member_count, total_score, hp, shield_active_until, coin_balance");
+      .select(`
+        id, name, element, member_count, total_score, hp, shield_active_until, coin_balance,
+        guild_master_id,
+        master:profiles!guild_master_id(username, discord_avatar, element)
+      `);
     if (guildsError) throw guildsError;
 
-    const result = [];
+    const result: GuildWithRanking[] = [];
     for (const g of guilds || []) {
       const { data: memberCoins } = await supabase
         .from("profiles")
         .select("coin_balance")
         .eq("guild_id", g.id);
       const totalMemberCoins = (memberCoins || []).reduce((s, m) => s + (m.coin_balance || 0), 0);
+      
+      const master = (g as any).master;
       result.push({
-        ...g,
+        id: g.id,
+        name: g.name,
+        element: g.element,
+        member_count: g.member_count || 0,
+        total_score: g.total_score || 0,
+        hp: g.hp ?? 100,
+        shield_active_until: g.shield_active_until,
+        coin_balance: g.coin_balance || 0,
         ranking_score: totalMemberCoins + (g.total_score || 0),
+        guild_master_id: g.guild_master_id,
+        guild_master_username: master?.username || null,
+        guild_master_avatar: master?.discord_avatar || null,
+        guild_master_element: master?.element || null,
       });
     }
     return result.sort((a, b) => b.ranking_score - a.ranking_score);
   }
-  return data || [];
+  
+  // Map RPC result to ensure guild_master fields exist
+  return (data || []).map((g: any) => ({
+    id: g.id,
+    name: g.name,
+    element: g.element,
+    member_count: g.member_count || 0,
+    total_score: g.total_score || 0,
+    hp: g.hp ?? 100,
+    shield_active_until: g.shield_active_until,
+    coin_balance: g.coin_balance || 0,
+    ranking_score: g.ranking_score || 0,
+    guild_master_id: g.guild_master_id,
+    guild_master_username: g.guild_master_username || g.master?.username || null,
+    guild_master_avatar: g.guild_master_avatar || g.master?.discord_avatar || null,
+    guild_master_element: g.guild_master_element || g.master?.element || null,
+  }));
+}
+
+// ── Guild Members (for internal leaderboard) ──────────────────────────────────
+export async function getGuildMembers(guildId: string): Promise<
+  Array<{
+    id: string;
+    username: string;
+    discord_avatar: string | null;
+    element: string | null;
+    contribution_score: number;
+    coin_balance: number;
+    joined_at: string | null;
+  }>
+> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, discord_avatar, element, contribution_score, coin_balance, guild_joined_at")
+    .eq("guild_id", guildId)
+    .order("contribution_score", { ascending: false });
+  if (error) throw error;
+  return (data || []).map((m: any) => ({
+    id: m.id,
+    username: m.username,
+    discord_avatar: m.discord_avatar,
+    element: m.element,
+    contribution_score: m.contribution_score || 0,
+    coin_balance: m.coin_balance || 0,
+    joined_at: m.guild_joined_at,
+  }));
 }
 
 export async function getAttackLog(limit = 50): Promise<
