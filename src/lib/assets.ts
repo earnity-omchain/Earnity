@@ -73,7 +73,6 @@ export const GUILD_IMAGES: Record<string, string> = {
   "Hunters":      `${GUILDS}/Hunters.png`,
   "Adorable":     `${GUILDS}/Adorable.png`,
   "Nomads":       `${GUILDS}/Nomads.png`,
-  "Bestas Feras": `${GUILDS}/Bestas%20Feras.png`,
 };
 
 // ── Element metadata ──────────────────────────────────────────────────────────
