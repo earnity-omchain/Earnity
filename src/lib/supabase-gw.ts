@@ -9,6 +9,14 @@ export async function getGuildsWithRanking() {
   return data || [];
 }
 
+export async function openChest(userId: string) {
+  const { data, error } = await supabase.rpc("open_chest", {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data as { reward: { type: string; quantity: number; subtype?: string } };
+}
+
 export async function getGuildMembers(guildId: string) {
   const { data, error } = await supabase
     .from("profiles")
