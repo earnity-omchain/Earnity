@@ -93,8 +93,8 @@ function daysUntilLeave(joinedAt: string | null | undefined): number {
 
 // ── Attack Particles Canvas ───────────────────────────────────────────────────
 function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string }) {
-  const canvasRef = useRef<<HTMLCanvasElement>(null);
-  const particlesRef = useRef<<AttackParticle[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<AttackParticle[]>([]);
   const animRef = useRef<number>(0);
 
   useEffect(() => {
