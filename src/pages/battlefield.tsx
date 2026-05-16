@@ -1027,7 +1027,7 @@ export default function Battlefield() {
       if (!canLeaveGuild((profile as any)?.guild_joined_at)) {
         throw new Error(`Must wait ${daysUntilLeave((profile as any)?.guild_joined_at)} more days`);
       }
-      const { error } = await supabase
+      const { error } = await (await import("@/lib/supabase")).supabase
         .from("profiles")
         .update({ guild_id: null, guild_joined_at: null })
         .eq("id", userId);
