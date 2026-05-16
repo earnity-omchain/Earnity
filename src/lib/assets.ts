@@ -1,6 +1,8 @@
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
 const GAME = `${CDN}/Game%20assets`;
 const GUILDS = `${CDN}/Guilds`;
+const ITEMS = `${CDN}/Items`;
+const SHARDS = `${CDN}/Shards`;
 
 // ── Game assets ───────────────────────────────────────────────────────────────
 export const GAME_ASSETS = {
@@ -21,12 +23,21 @@ export const GAME_ASSETS = {
   wind:      `${GAME}/Wind.png`,
 
   // Elemental shards
-  shardFire:      `${GAME}/fire-shard.png`,
-  shardWater:     `${GAME}/water-shard.png`,
-  shardNature:    `${GAME}/nature-shard.png`,
-  shardRock:      `${GAME}/rock-shard.png`,
-  shardLightning: `${GAME}/lightning-shard.png`,
-  shardWind:      `${GAME}/wind-shard.png`,
+  shardFire:      `${SHARDS}/fire-shard.png`,
+  shardWater:     `${SHARDS}/water-shard.png`,
+  shardNature:    `${SHARDS}/nature-shard.png`,
+  shardRock:      `${SHARDS}/rock-shard.png`,
+  shardLightning: `${SHARDS}/lightning-shard.png`,
+  shardWind:      `${SHARDS}/wind-shard.png`,
+  shardIce:       `${SHARDS}/ice-shard.png`,
+
+  // Items
+  nuke:     `${ITEMS}/Nuke.png`,
+  drain:    `${ITEMS}/Drain.png`,
+  rug:      `${ITEMS}/RUG.png`,
+  shield:   `${ITEMS}/Shield.png`,
+  hpPotion: `${ITEMS}/HP.png`,
+  mpPotion: `${ITEMS}/MP.png`,
 
   // Mystery & item boxes
   mysteryboxClosed: `${GAME}/mysterybox-closed.png`,
@@ -111,7 +122,6 @@ export const ELEMENT_META: Record<string, {
     img: GAME_ASSETS.rock,
     shard: GAME_ASSETS.shardRock,
   },
-  // Both "lighting" and "lightning" keys — handles legacy data
   lighting: {
     label: "Lightning",
     text: "text-yellow-400",
@@ -138,6 +148,15 @@ export const ELEMENT_META: Record<string, {
     glow: "rgba(125,211,252,0.3)",
     img: GAME_ASSETS.wind,
     shard: GAME_ASSETS.shardWind,
+  },
+  ice: {
+    label: "Ice",
+    text: "text-blue-200",
+    border: "border-blue-300/50",
+    bg: "bg-blue-300/15",
+    glow: "rgba(186,230,253,0.3)",
+    img: GAME_ASSETS.water,
+    shard: GAME_ASSETS.shardIce,
   },
 };
 
