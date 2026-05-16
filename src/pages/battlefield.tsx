@@ -14,6 +14,7 @@ import {
   getAttackLog,
   getGuildCooldowns,
   getUserMP,
+  getGuildMembers,
 } from "@/lib/supabase-gw";
 import { api } from "@/lib/supabase";
 import {
@@ -21,6 +22,7 @@ import {
   ArrowLeft, Flame, Droplets, Mountain, Wind, TreePine,
   CloudLightning, AlertTriangle, CheckCircle, X, ChevronRight,
   Users, Crosshair, Activity, MapPin, Sparkles, Target, LogIn, LogOut,
+  Crown, Medal, Award,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -91,8 +93,8 @@ function daysUntilLeave(joinedAt: string | null | undefined): number {
 
 // ── Attack Particles Canvas ───────────────────────────────────────────────────
 function ParticleCanvas({ trigger, color }: { trigger: boolean; color: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<AttackParticle[]>([]);
+  const canvasRef = useRef<<HTMLCanvasElement>(null);
+  const particlesRef = useRef<<AttackParticle[]>([]);
   const animRef = useRef<number>(0);
 
   useEffect(() => {
@@ -407,6 +409,7 @@ function GuildBuilding({ guild, index, isMyGuild, isSelected, onClick, attackPar
 
         <div className="relative p-4 pb-2 flex flex-col items-center">
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-20 h-3 bg-black/60 rounded-[100%] blur-sm" />
+
           <motion.div
             className="relative w-24 h-24 md:w-28 md:h-28"
             animate={isSelected ? { y: [0, -4, 0] } : {}}
@@ -453,6 +456,59 @@ function GuildBuilding({ guild, index, isMyGuild, isSelected, onClick, attackPar
   );
 }
 
+// ── Guild Member Row (for internal leaderboard) ───────────────────────────────
+function GuildMemberRow({ member, index, isMaster }: { member: any; index: number; isMaster: boolean }) {
+  const el = member.element ? ELEMENT_META[member.element] : null;
+  const elColor = member.element ? ELEMENT_COLORS[member.element] : "#6b7280";
+  
+  const rankIcon = index === 0 ? <Crown className="w-3.5 h-3.5 text-yellow-400" /> :
+    index === 1 ? <Medal className="w-3.5 h-3.5 text-gray-400" /> :
+    index === 2 ? <Award className="w-3.5 h-3.5 text-orange-400" /> :
+    <span className="text-[10px] font-mono text-white/30 w-3.5 text-center">{index + 1}</span>;
+
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 transition-colors">
+      <div className="w-5 flex justify-center">{rankIcon}</div>
+      
+      <div className="relative">
+        {member.discord_avatar ? (
+          <img src={member.discord_avatar} alt={member.username} 
+            className="w-7 h-7 rounded-full border border-white/10 object-cover" />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/50">
+            {member.username?.[0]?.toUpperCase() || "?"}
+          </div>
+        )}
+        {isMaster && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border border-black flex items-center justify-center">
+            <Crown className="w-2 h-2 text-black" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold text-white truncate">{member.username || "Unknown"}</span>
+          {el && (
+            <span style={{ color: elColor }} className="text-[10px]">
+              {ELEMENT_ICONS[member.element]}
+            </span>
+          )}
+        </div>
+        <div className="text-[9px] text-white/30">
+          {member.contribution_score || 0} pts · {(member.coin_balance || 0).toLocaleString()} coins
+        </div>
+      </div>
+
+      <div className="text-right">
+        <div className="text-xs font-mono font-bold text-white/60">
+          {(member.contribution_score || 0).toLocaleString()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Guild Detail Panel ────────────────────────────────────────────────────────
 function GuildDetailPanel({
   guild, isMyGuild, myGuildId, session, profile,
@@ -491,6 +547,13 @@ function GuildDetailPanel({
   const canLeave = canLeaveGuild(joinedAt);
   const daysLeft = daysUntilLeave(joinedAt);
 
+  // Fetch guild members for internal leaderboard
+  const { data: guildMembers } = useQuery({
+    queryKey: ["guild-members", guild.id],
+    queryFn: () => getGuildMembers(guild.id),
+    enabled: !!guild.id,
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -502,7 +565,7 @@ function GuildDetailPanel({
         initial={{ x: 0, y: "100%" }}
         animate={{ x: 0, y: 0 }}
         exit={{ x: 0, y: "100%" }}
-        className="w-full md:w-[400px] h-[85vh] md:h-full bg-[#080808] md:border-l md:border-t-0 border-t border-white/10 shadow-2xl overflow-y-auto rounded-t-3xl md:rounded-none"
+        className="w-full md:w-[420px] h-[85vh] md:h-full bg-[#080808] md:border-l md:border-t-0 border-t border-white/10 shadow-2xl overflow-y-auto rounded-t-3xl md:rounded-none"
         style={{ boxShadow: "0 -10px 40px rgba(0,0,0,0.8)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -535,15 +598,36 @@ function GuildDetailPanel({
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Stats */}
+          {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-xl bg-white/3 border border-white/8">
-              <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Guild Master</div>
-              <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
-                {guild.guild_master || guild.guild_master_id?.slice(0, 8) || "Unknown"}
+            {/* Guild Master Card */}
+            <div className="p-3 rounded-xl bg-white/3 border border-white/8 col-span-2">
+              <div className="text-[9px] uppercase tracking-widest text-white/30 mb-2">Guild Master</div>
+              <div className="flex items-center gap-3">
+                {guild.guild_master_avatar ? (
+                  <img src={guild.guild_master_avatar} alt="" 
+                    className="w-10 h-10 rounded-full border border-white/10 object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                    <Crown className="w-5 h-5 text-yellow-500" />
+                  </div>
+                )}
+                <div>
+                  <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                    {guild.guild_master_username || guild.guild_master_id?.slice(0, 8) || "Unknown"}
+                    {guild.guild_master_element && (
+                      <span style={{ color: ELEMENT_COLORS[guild.guild_master_element] || "#fff" }}>
+                        {ELEMENT_ICONS[guild.guild_master_element]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-white/30 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-yellow-500" /> Guild Master
+                  </div>
+                </div>
               </div>
             </div>
+
             <div className="p-3 rounded-xl bg-white/3 border border-white/8">
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-1">Members</div>
               <div className="text-sm font-bold text-white flex items-center gap-1.5">
@@ -620,7 +704,7 @@ function GuildDetailPanel({
             </div>
           )}
 
-          {/* ── LEAVE GUILD SECTION (only on own guild panel) ── */}
+          {/* ── LEAVE GUILD SECTION ── */}
           {session && isInThisGuild && (
             <div>
               <div className="text-[10px] uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
@@ -663,6 +747,26 @@ function GuildDetailPanel({
           {session && isInAnyGuild && !isInThisGuild && !isMyGuild && (
             <div className="text-center py-3 text-white/25 text-xs border border-white/5 rounded-xl bg-white/2">
               Leave your current guild first to join another
+            </div>
+          )}
+
+          {/* ── GUILD MEMBERS LEADERBOARD ── */}
+          {guildMembers && guildMembers.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2">
+                <Users className="w-3 h-3" /> Guild Members ({guildMembers.length})
+              </div>
+              <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(168,85,247,0.2) transparent" }}>
+                {guildMembers.map((member, idx) => (
+                  <GuildMemberRow 
+                    key={member.id} 
+                    member={member} 
+                    index={idx} 
+                    isMaster={member.id === guild.guild_master_id} 
+                  />
+                ))}
+              </div>
             </div>
           )}
 
@@ -911,24 +1015,9 @@ export default function Battlefield() {
     },
   });
 
-  // JOIN mutation — sets guild_id and records join timestamp
+  // JOIN — uses api.joinGuild from supabase.ts (properly typed)
   const joinMutation = useMutation({
-    mutationFn: async (guildId: string) => {
-      if (!userId) throw new Error("Not authenticated");
-      const { data, error } = await (await import("@/lib/supabase")).supabase
-        .from("profiles")
-        .update({
-          guild_id: guildId,
-          guild_joined_at: new Date().toISOString(),
-        })
-        .eq("id", userId)
-        .is("guild_id", null)
-        .select()
-        .single();
-      if (error) throw error;
-      if (!data) throw new Error("Already in a guild");
-      return data;
-    },
+    mutationFn: (guildId: string) => api.joinGuild(userId!, guildId),
     onSuccess: () => {
       setToast({ message: "You joined the guild!", success: true });
       queryClient.invalidateQueries({ queryKey: ["guilds-ranked"] });
@@ -940,14 +1029,14 @@ export default function Battlefield() {
     },
   });
 
-  // LEAVE mutation — clears guild_id, keeps joined_at for audit
+  // LEAVE — uses direct supabase update with 7-day check
   const leaveMutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not authenticated");
-      // Check 7-day lock
       if (!canLeaveGuild((profile as any)?.guild_joined_at)) {
-        throw new Error(`You must wait ${daysUntilLeave((profile as any)?.guild_joined_at)} more days to leave`);
+        throw new Error(`Must wait ${daysUntilLeave((profile as any)?.guild_joined_at)} more days`);
       }
+      // Use api pattern or direct supabase
       const { error } = await (await import("@/lib/supabase")).supabase
         .from("profiles")
         .update({ guild_id: null })
@@ -1178,157 +1267,158 @@ export default function Battlefield() {
                 {/* Defense */}
                 <div className="rounded-xl overflow-hidden"
                   style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(59,130,246,0.15)" }}>
-                  <div className="h-0.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Shield className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs uppercase tracking-widest text-blue-400">Defense</span>
-                    </div>
-                    <div className="space-y-3">
-                      {[GAME_ITEMS.SHIELD, GAME_ITEMS.HP_POTION, GAME_ITEMS.MP_POTION].map(itemKey => {
-                        const meta = ITEM_META[itemKey];
-                        const qty = getItemQty(itemKey);
-                        const color = ITEM_COLORS[itemKey];
-                        return (
-                          <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
-                            style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
-                            <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
-                            <div className="flex-1">
-                              <div className="font-black text-white text-sm">{meta.label}</div>
-                              <div className="text-[10px] text-white/35 mt-0.5">{meta.description}</div>
-                            </div>
-                            <div className="text-2xl font-black tabular-nums" style={{ color }}>×{qty}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Shards */}
-                <div className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                  <div className="h-0.5 bg-gradient-to-r from-purple-600 to-pink-500" />
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Zap className="w-4 h-4 text-purple-400" />
-                      <span className="text-xs uppercase tracking-widest text-purple-400">Shards & Elementals</span>
-                    </div>
-                    <div className="space-y-2">
-                      {["fire", "water", "nature", "rock", "lightning", "wind"].map(elKey => {
-                        const elMeta = ELEMENT_META[elKey];
-                        const shards = inventory?.find((i: any) => i.item_type === `shard_${elKey}`)?.quantity || 0;
-                        const elementals = inventory?.find((i: any) => i.item_type === `elemental_${elKey}`)?.quantity || 0;
-                        const elHex = ELEMENT_COLORS[elKey] || "#a855f7";
-                        return (
-                          <div key={elKey} className="flex items-center gap-2 p-2 rounded-lg"
-                            style={{ background: `${elHex}11`, border: `1px solid ${elHex}33` }}>
-                            <img src={elMeta?.shard} alt={elKey} className="w-6 h-6 object-contain" />
-                            <div className="flex-1">
-                              <span className="text-xs font-bold" style={{ color: elHex }}>{elMeta?.label}</span>
-                              <div className="h-1 bg-black/30 rounded-full mt-1 overflow-hidden">
-                                <div className="h-full rounded-full"
-                                  style={{ width: `${Math.min(100, (shards / 4) * 100)}%`, background: elHex }} />
+                                        <div className="h-0.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
+                      <div className="p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Shield className="w-4 h-4 text-blue-400" />
+                          <span className="text-xs uppercase tracking-widest text-blue-400">Defense</span>
+                        </div>
+                        <div className="space-y-3">
+                          {[GAME_ITEMS.SHIELD, GAME_ITEMS.HP_POTION, GAME_ITEMS.MP_POTION].map(itemKey => {
+                            const meta = ITEM_META[itemKey];
+                            const qty = getItemQty(itemKey);
+                            const color = ITEM_COLORS[itemKey];
+                            return (
+                              <div key={itemKey} className="flex items-center gap-3 p-3 rounded-lg"
+                                style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+                                <img src={meta.image} alt={meta.label} className="w-10 h-10 object-contain" />
+                                <div className="flex-1">
+                                  <div className="font-black text-white text-sm">{meta.label}</div>
+                                  <div className="text-[10px] text-white/35 mt-0.5">{meta.description}</div>
+                                </div>
+                                <div className="text-2xl font-black tabular-nums" style={{ color }}>×{qty}</div>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-[10px] font-mono text-white/50">{shards} shards</div>
-                              <div className="text-[10px] font-mono text-purple-400">{elementals} elemental</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* WAR LOG */}
-          {activeTab === "log" && (
-            <motion.div key="log" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-2xl">
-              <div className="rounded-xl overflow-hidden"
-                style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="h-0.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-red-400" />
-                      <span className="text-xs uppercase tracking-widest text-red-400">War Log</span>
-                    </div>
-                    <motion.div className="flex items-center gap-1.5"
-                      animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                      <span className="text-[9px] uppercase tracking-widest text-red-500">Live</span>
-                    </motion.div>
-                  </div>
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
-                    style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}>
-                    {!attackLog?.length && (
-                      <div className="text-center py-16">
-                        <motion.div animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
-                          <Swords className="w-8 h-8 text-white/15 mx-auto mb-3" />
-                        </motion.div>
-                        <div className="text-xs text-white/20 uppercase tracking-widest">
-                          The battlefield is quiet… for now.
+                            );
+                          })}
                         </div>
                       </div>
-                    )}
-                    {attackLog?.map((attack: any, index: number) => (
-                      <WarLogEntry key={attack.id} attack={attack} index={index} />
-                    ))}
+                    </div>
+
+                    {/* Shards */}
+                    <div className="rounded-xl overflow-hidden"
+                      style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                      <div className="h-0.5 bg-gradient-to-r from-purple-600 to-pink-500" />
+                      <div className="p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Zap className="w-4 h-4 text-purple-400" />
+                          <span className="text-xs uppercase tracking-widest text-purple-400">Shards & Elementals</span>
+                        </div>
+                        <div className="space-y-2">
+                          {["fire", "water", "nature", "rock", "lightning", "wind"].map(elKey => {
+                            const elMeta = ELEMENT_META[elKey];
+                            const shards = inventory?.find((i: any) => i.item_type === `shard_${elKey}`)?.quantity || 0;
+                            const elementals = inventory?.find((i: any) => i.item_type === `elemental_${elKey}`)?.quantity || 0;
+                            const elHex = ELEMENT_COLORS[elKey] || "#a855f7";
+                            return (
+                              <div key={elKey} className="flex items-center gap-2 p-2 rounded-lg"
+                                style={{ background: `${elHex}11`, border: `1px solid ${elHex}33` }}>
+                                <img src={elMeta?.shard} alt={elKey} className="w-6 h-6 object-contain" />
+                                <div className="flex-1">
+                                  <span className="text-xs font-bold" style={{ color: elHex }}>{elMeta?.label}</span>
+                                  <div className="h-1 bg-black/30 rounded-full mt-1 overflow-hidden">
+                                    <div className="h-full rounded-full"
+                                      style={{ width: `${Math.min(100, (shards / 4) * 100)}%`, background: elHex }} />
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[10px] font-mono text-white/50">{shards} shards</div>
+                                  <div className="text-[10px] font-mono text-purple-400">{elementals} elemental</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
+                </motion.div>
+              )}
 
-        </AnimatePresence>
-      </div>
+              {/* WAR LOG */}
+              {activeTab === "log" && (
+                <motion.div key="log" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-2xl">
+                  <div className="rounded-xl overflow-hidden"
+                    style={{ background: "rgba(10,10,10,0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="h-0.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-red-400" />
+                          <span className="text-xs uppercase tracking-widest text-red-400">War Log</span>
+                        </div>
+                        <motion.div className="flex items-center gap-1.5"
+                          animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          <span className="text-[9px] uppercase tracking-widest text-red-500">Live</span>
+                        </motion.div>
+                      </div>
+                      <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1"
+                        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(239,68,68,0.2) transparent" }}>
+                        {!attackLog?.length && (
+                          <div className="text-center py-16">
+                            <motion.div animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 2, repeat: Infinity }}>
+                              <Swords className="w-8 h-8 text-white/15 mx-auto mb-3" />
+                            </motion.div>
+                            <div className="text-xs text-white/20 uppercase tracking-widest">
+                              The battlefield is quiet… for now.
+                            </div>
+                          </div>
+                        )}
+                        {attackLog?.map((attack: any, index: number) => (
+                          <WarLogEntry key={attack.id} attack={attack} index={index} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
-      {/* Guild Detail Panel */}
-      <AnimatePresence>
-        {selectedGuild && (
-          <GuildDetailPanel
-            guild={selectedGuild}
-            isMyGuild={myGuildId === selectedGuild.id}
-            myGuildId={myGuildId}
-            session={session}
-            profile={profile}
-            currentMP={currentMP}
-            inventory={inventory || []}
-            myGuildCooldowns={myGuildCooldowns || []}
-            attackMutation={attackMutation}
-            defenseMutation={defenseMutation}
-            mpPotionMutation={mpPotionMutation}
-            joinMutation={joinMutation}
-            leaveMutation={leaveMutation}
-            onAttackItemClick={setConfirmItem}
-            onClose={() => setSelectedGuild(null)}
-          />
-        )}
-      </AnimatePresence>
+            </AnimatePresence>
+          </div>
 
-      {/* Confirm Attack Modal */}
-      <AnimatePresence>
-        {confirmItem && selectedGuild && (
-          <ConfirmAttackModal
-            guild={selectedGuild}
-            itemType={confirmItem}
-            isPending={attackMutation.isPending}
-            onConfirm={() => attackMutation.mutate({ targetId: selectedGuild.id, itemType: confirmItem })}
-            onCancel={() => setConfirmItem(null)}
-          />
-        )}
-      </AnimatePresence>
+          {/* Guild Detail Panel */}
+          <AnimatePresence>
+            {selectedGuild && (
+              <GuildDetailPanel
+                guild={selectedGuild}
+                isMyGuild={myGuildId === selectedGuild.id}
+                myGuildId={myGuildId}
+                session={session}
+                profile={profile}
+                currentMP={currentMP}
+                inventory={inventory || []}
+                myGuildCooldowns={myGuildCooldowns || []}
+                attackMutation={attackMutation}
+                defenseMutation={defenseMutation}
+                mpPotionMutation={mpPotionMutation}
+                joinMutation={joinMutation}
+                leaveMutation={leaveMutation}
+                onAttackItemClick={setConfirmItem}
+                onClose={() => setSelectedGuild(null)}
+              />
+            )}
+          </AnimatePresence>
 
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <AttackToast message={toast.message} success={toast.success} onDismiss={() => setToast(null)} />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+          {/* Confirm Attack Modal */}
+          <AnimatePresence>
+            {confirmItem && selectedGuild && (
+              <ConfirmAttackModal
+                guild={selectedGuild}
+                itemType={confirmItem}
+                isPending={attackMutation.isPending}
+                onConfirm={() => attackMutation.mutate({ targetId: selectedGuild.id, itemType: confirmItem })}
+                onCancel={() => setConfirmItem(null)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Toast */}
+          <AnimatePresence>
+            {toast && (
+              <AttackToast message={toast.message} success={toast.success} onDismiss={() => setToast(null)} />
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
+
