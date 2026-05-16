@@ -49,7 +49,7 @@ export const GUILD_IMAGES: Record<string, string> = {
   "趋势": `${GUILDS}/Trend.png`,
   "SeaWay": `${GUILDS}/SeaWay.png`,
   "meigui": `${GUILDS}/meigui.png`,
-  "Insiders": `${GUILDS}/Insiders.png`,
+  "INSIDERS": `${GUILDS}/Insiders.png`,
   "bao": `${GUILDS}/bao.png`,
   "Enel": `${GUILDS}/Enel.png`,
   "Hubchainify": `${GUILDS}/Hubchainify.png`,
