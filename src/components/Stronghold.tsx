@@ -14,10 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Swords, Shield, Zap, Heart, Wind, TrendingUp,
-  Star,
+  Swords, Shield, Zap, Heart, Wind, TrendingUp, Star,
 } from "lucide-react";
 
+/* ── Stat Row ── */
 function StatRow({
   icon,
   label,
@@ -58,6 +58,7 @@ function StatRow({
   );
 }
 
+/* ── Stronghold Component ── */
 export default function Stronghold({
   userId,
   profile,
@@ -67,7 +68,12 @@ export default function Stronghold({
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const score = profile?.stronghold_score ?? profile?.ranking_score ?? profile?.contribution_score ?? 0;
+  const score =
+    profile?.stronghold_score ??
+    profile?.ranking_score ??
+    profile?.contribution_score ??
+    0;
+
   const { rank, progress, nextThreshold, nextRank, label } = getRankFromScore(score);
   const stats = getGuildStats(score);
   const rankColor = RANK_COLORS[rank];
@@ -76,7 +82,7 @@ export default function Stronghold({
 
   return (
     <>
-      {/* ── Floating Trigger ── */}
+      {/* ── Floating Trigger (replaces old floating chest) ── */}
       <motion.button
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
@@ -95,9 +101,13 @@ export default function Stronghold({
           animate={{ y: [0, -3, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         />
+
+        {/* Rank color ambient fill */}
         <div
           className="absolute inset-0 opacity-20 z-0"
-          style={{ background: `radial-gradient(circle at 50% 80%, ${rankColor}, transparent 70%)` }}
+          style={{
+            background: `radial-gradient(circle at 50% 80%, ${rankColor}, transparent 70%)`,
+          }}
         />
 
         {/* Rank badge */}
@@ -140,7 +150,7 @@ export default function Stronghold({
               />
             </motion.div>
 
-            {/* Rank */}
+            {/* Rank label */}
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -160,8 +170,8 @@ export default function Stronghold({
               {score.toLocaleString()} Power
             </div>
 
-            {/* Progress */}
-            {nextThreshold && (
+            {/* Progress bar */}
+            {nextThreshold ? (
               <div className="w-full mb-6 px-1">
                 <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
                   <span>Rank Progress</span>
@@ -172,7 +182,9 @@ export default function Stronghold({
                 <div className="h-2.5 bg-zinc-900 rounded-full overflow-hidden border border-white/5">
                   <motion.div
                     className="h-full rounded-full relative"
-                    style={{ background: `linear-gradient(90deg, ${rankColor}88, ${rankColor})` }}
+                    style={{
+                      background: `linear-gradient(90deg, ${rankColor}88, ${rankColor})`,
+                    }}
                     initial={{ width: 0 }}
                     animate={{ width: `${progress * 100}%` }}
                     transition={{ duration: 1.2, ease: "easeOut" }}
@@ -181,24 +193,69 @@ export default function Stronghold({
                   </motion.div>
                 </div>
               </div>
-            )}
-
-            {!nextThreshold && (
-              <div className="w-full mb-6 p-3 rounded-xl border text-center"
-                style={{ borderColor: `${rankColor}30`, background: `${rankColor}08` }}>
+            ) : (
+              <div
+                className="w-full mb-6 p-3 rounded-xl border text-center"
+                style={{
+                  borderColor: `${rankColor}30`,
+                  background: `${rankColor}08`,
+                }}
+              >
                 <Star className="w-4 h-4 mx-auto mb-1" style={{ color: rankColor }} />
                 <div className="text-xs font-bold text-white">Maximum Rank Achieved</div>
               </div>
             )}
 
-            {/* Stats */}
+            {/* Stats grid */}
             <div className="w-full grid grid-cols-2 gap-2">
-              <StatRow icon={<Swords className="w-3.5 h-3.5 text-red-400" />} label="Attack" value={stats.attack} color="#ef4444" max={110} delay={0} />
-              <StatRow icon={<Shield className="w-3.5 h-3.5 text-blue-400" />} label="Defense" value={stats.defense} color="#3b82f6" max={90} delay={0.05} />
-              <StatRow icon={<Zap className="w-3.5 h-3.5 text-purple-400" />} label="Magic" value={stats.magic} color="#a855f7" max={120} delay={0.1} />
-              <StatRow icon={<Heart className="w-3.5 h-3.5 text-green-400" />} label="HP Pool" value={stats.hp} color="#22c55e" max={650} delay={0.15} />
-              <StatRow icon={<Wind className="w-3.5 h-3.5 text-cyan-400" />} label="Speed" value={stats.speed} color="#06b6d4" max={35} delay={0.2} />
-              <StatRow icon={<TrendingUp className="w-3.5 h-3.5 text-yellow-400" />} label="Power" value={score} color="#eab308" max={1000000} delay={0.25} />
+              <StatRow
+                icon={<Swords className="w-3.5 h-3.5 text-red-400" />}
+                label="Attack"
+                value={stats.attack}
+                color="#ef4444"
+                max={110}
+                delay={0}
+              />
+              <StatRow
+                icon={<Shield className="w-3.5 h-3.5 text-blue-400" />}
+                label="Defense"
+                value={stats.defense}
+                color="#3b82f6"
+                max={90}
+                delay={0.05}
+              />
+              <StatRow
+                icon={<Zap className="w-3.5 h-3.5 text-purple-400" />}
+                label="Magic"
+                value={stats.magic}
+                color="#a855f7"
+                max={120}
+                delay={0.1}
+              />
+              <StatRow
+                icon={<Heart className="w-3.5 h-3.5 text-green-400" />}
+                label="HP Pool"
+                value={stats.hp}
+                color="#22c55e"
+                max={650}
+                delay={0.15}
+              />
+              <StatRow
+                icon={<Wind className="w-3.5 h-3.5 text-cyan-400" />}
+                label="Speed"
+                value={stats.speed}
+                color="#06b6d4"
+                max={35}
+                delay={0.2}
+              />
+              <StatRow
+                icon={<TrendingUp className="w-3.5 h-3.5 text-yellow-400" />}
+                label="Power"
+                value={score}
+                color="#eab308"
+                max={1000000}
+                delay={0.25}
+              />
             </div>
           </div>
         </DialogContent>
