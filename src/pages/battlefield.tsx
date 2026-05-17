@@ -1414,23 +1414,22 @@ export default function Battlefield() {
                     </div>
                   )}
                   {!isLoading && rankedGuilds && rankedGuilds.length > 0 && (
-                    <div className="columns-2 md:columns-3 lg:columns-5 gap-4 md:gap-6 space-y-4 md:space-y-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 items-start">
                       {rankedGuilds.map((guild: any, index: number) => (
-                        <div key={guild.id} className="break-inside-avoid"
-                          style={{ transform: index % 2 === 0 ? "translateY(0)" : "translateY(1rem)" }}>
-                          <GuildBuilding
-                            guild={guild}
-                            index={index}
-                            isMyGuild={myGuildId === guild.id}
-                            isSelected={selectedGuild?.id === guild.id}
-                            onClick={() => setSelectedGuild(selectedGuild?.id === guild.id ? null : guild)}
-                            attackParticle={attackedGuildId === guild.id}
-                            isOnFire={!!(onFireGuilds[guild.id] && onFireGuilds[guild.id] > Date.now())}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                       <div key={guild.id} className={index % 2 === 1 ? "mt-4 md:mt-6" : ""}>
+                         <GuildBuilding
+                           guild={guild}
+                           index={index}
+                           isMyGuild={myGuildId === guild.id}
+                           isSelected={selectedGuild?.id === guild.id}
+                           onClick={() => setSelectedGuild(selectedGuild?.id === guild.id ? null : guild)}
+                           attackParticle={attackedGuildId === guild.id}
+                           isOnFire={!!(onFireGuilds[guild.id] && onFireGuilds[guild.id] > Date.now())}
+                         />
+                       </div>
+                     ))}
+                   </div>
+                 )}
                   {!isLoading && (!rankedGuilds || rankedGuilds.length === 0) && (
                     <div className="text-center py-24">
                       <MapPin className="w-10 h-10 text-white/15 mx-auto mb-4" />
