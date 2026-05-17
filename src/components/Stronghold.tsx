@@ -1,14 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth-context";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import {
   getRankFromScore,
   getBuildingImage,
   getGuildStats,
   RANK_COLORS,
   RANK_GLOW,
-  type GuildRank,
 } from "@/lib/guild-leveling";
 import {
   Dialog,
@@ -18,36 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Swords, Shield, Zap, Heart, Wind, TrendingUp,
-  Star, Sparkles, Clock, Skull, Droplets,
+  Star,
 } from "lucide-react";
-import {
-  canOpenChest,
-  getChestCooldownRemaining,
-  GAME_ASSETS,
-  ELEMENT_META,
-  ITEM_META,
-  GAME_ITEMS,
-} from "@/lib/game-config";
-import { openChest } from "@/lib/supabase-gw";
-
-function useCountdown(target: Date) {
-  const calc = () => {
-    const diff = target.getTime() - Date.now();
-    if (diff <= 0) return { hours: 0, minutes: 0, seconds: 0, expired: true };
-    return {
-      hours: Math.floor(diff / 3600000),
-      minutes: Math.floor((diff % 3600000) / 60000),
-      seconds: Math.floor((diff % 60000) / 1000),
-      expired: false,
-    };
-  };
-  const [t, setT] = useState(calc);
-  useEffect(() => {
-    const id = setInterval(() => setT(calc()), 1000);
-    return () => clearInterval(id);
-  }, [target.getTime()]);
-  return t;
-}
 
 function StatRow({
   icon,
@@ -96,7 +65,6 @@ export default function Stronghold({
   userId: string;
   profile: any;
 }) {
-  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 
   const score = profile?.stronghold_score ?? profile?.ranking_score ?? profile?.contribution_score ?? 0;
@@ -105,80 +73,6 @@ export default function Stronghold({
   const rankColor = RANK_COLORS[rank];
   const glow = RANK_GLOW[rank];
   const buildingImg = getBuildingImage(rank);
-
-  /* ── Chest state ── */
-  const [lastOpened, setLastOpened] = useState(profile?.last_chest_opened);
-  useEffect(() => setLastOpened(profile?.last_chest_opened), [profile?.last_chest_opened]);
-
-  const canOpen = canOpenChest(lastOpened);
-  const cooldownRemaining = getChestCooldownRemaining(lastOpened);
-  const cooldownMs = cooldownRemaining * 60 * 60 * 1000;
-  const targetDate = useMemo(() => new Date(Date.now() + Math.max(0, cooldownMs)), [cooldownMs]);
-  const countdown = useCountdown(targetDate);
-
-  const [reward, setReward] = useState<any>(null);
-  const [isOpening, setIsOpening] = useState(false);
-  const [showReward, setShowReward] = useState(false);
-
-  const openMutation = useMutation({
-    mutationFn: () => openChest(userId),
-    onSuccess: (result) => {
-      setReward(result.reward);
-      setIsOpening(false);
-      setShowReward(true);
-      setLastOpened(new Date().toISOString());
-      queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      setTimeout(() => setShowReward(false), 4000);
-    },
-    onError: (err: any) => {
-      setIsOpening(false);
-      setReward({ type: "error", message: err.message });
-      setShowReward(true);
-      setTimeout(() => setShowReward(false), 3000);
-    },
-  });
-
-  const handleOpenChest = () => {
-    if (!canOpen || isOpening) return;
-    setIsOpening(true);
-    setReward(null);
-    setShowReward(false);
-    openMutation.mutate();
-  };
-
-  const getRewardIcon = () => {
-    if (!reward || reward.type === "error") return <Sparkles className="w-8 h-8 text-yellow-400" />;
-    switch (reward.type) {
-      case "coin": return <img src={GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      default: return <Sparkles className="w-8 h-8 text-yellow-400" />;
-    }
-  };
-
-  const getRewardLabel = () => {
-    if (!reward) return "Opening…";
-    if (reward.type === "error") return reward.message;
-    switch (reward.type) {
-      case "coin": return `${reward.quantity.toLocaleString()} Coins`;
-      case "shard": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Shard`;
-      case "elemental": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Elemental`;
-      case "item": return `${reward.quantity}x ${ITEM_META[reward.subtype]?.label || reward.subtype}`;
-      default: return "Mystery Reward";
-    }
-  };
-
-  const getRewardColor = () => {
-    switch (reward?.type) {
-      case "coin": return "text-yellow-400";
-      case "shard": return "text-blue-400";
-      case "elemental": return "text-purple-400";
-      case "item": return "text-red-400";
-      default: return "text-white";
-    }
-  };
 
   return (
     <>
@@ -303,80 +197,13 @@ export default function Stronghold({
             )}
 
             {/* Stats */}
-            <div className="w-full grid grid-cols-2 gap-2 mb-6">
+            <div className="w-full grid grid-cols-2 gap-2">
               <StatRow icon={<Swords className="w-3.5 h-3.5 text-red-400" />} label="Attack" value={stats.attack} color="#ef4444" max={110} delay={0} />
               <StatRow icon={<Shield className="w-3.5 h-3.5 text-blue-400" />} label="Defense" value={stats.defense} color="#3b82f6" max={90} delay={0.05} />
               <StatRow icon={<Zap className="w-3.5 h-3.5 text-purple-400" />} label="Magic" value={stats.magic} color="#a855f7" max={120} delay={0.1} />
               <StatRow icon={<Heart className="w-3.5 h-3.5 text-green-400" />} label="HP Pool" value={stats.hp} color="#22c55e" max={650} delay={0.15} />
               <StatRow icon={<Wind className="w-3.5 h-3.5 text-cyan-400" />} label="Speed" value={stats.speed} color="#06b6d4" max={35} delay={0.2} />
               <StatRow icon={<TrendingUp className="w-3.5 h-3.5 text-yellow-400" />} label="Power" value={score} color="#eab308" max={1000000} delay={0.25} />
-            </div>
-
-            {/* ── Mystery Chest (prominent timer) ── */}
-            <div className="w-full p-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <img src={GAME_ASSETS.mysteryboxClosed} className="w-6 h-6 object-contain" alt="" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Mystery Chest</span>
-                </div>
-                <div className={`text-xs font-mono font-bold ${canOpen ? "text-green-400" : "text-yellow-400/60"}`}>
-                  {canOpen ? "READY" : `${countdown.hours}h ${countdown.minutes}m ${countdown.seconds}s`}
-                </div>
-              </div>
-
-              {/* Big Timer Bar */}
-              {!canOpen && (
-                <div className="mb-3">
-                  <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-yellow-600 to-orange-500 rounded-full"
-                      initial={{ width: "100%" }}
-                      animate={{ width: `${(countdown.minutes / 120) * 100}%` }}
-                      transition={{ duration: 1 }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <motion.button
-                whileHover={canOpen && !isOpening ? { scale: 1.02 } : {}}
-                whileTap={canOpen && !isOpening ? { scale: 0.98 } : {}}
-                onClick={handleOpenChest}
-                disabled={!canOpen || isOpening}
-                className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                  canOpen && !isOpening
-                    ? "bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg shadow-yellow-900/30 hover:shadow-yellow-900/50"
-                    : "bg-zinc-900 text-zinc-600 cursor-not-allowed border border-zinc-800"
-                }`}
-              >
-                {isOpening ? (
-                  <>
-                    <Sparkles className="w-4 h-4 animate-spin" /> Opening…
-                  </>
-                ) : canOpen ? (
-                  <>
-                    <Sparkles className="w-4 h-4" /> Open Chest
-                  </>
-                ) : (
-                  <>
-                    <Clock className="w-4 h-4" /> On Cooldown
-                  </>
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {showReward && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-3 flex flex-col items-center gap-1.5"
-                  >
-                    <div>{getRewardIcon()}</div>
-                    <div className={`text-sm font-bold ${getRewardColor()}`}>{getRewardLabel()}</div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </DialogContent>
