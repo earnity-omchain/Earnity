@@ -68,7 +68,7 @@ export default function Stronghold({
   const [isOpen, setIsOpen] = useState(false);
 
   const score = profile?.stronghold_score ?? profile?.ranking_score ?? profile?.contribution_score ?? 0;
-  const { rank, tier, progress, nextThreshold, nextRank, label } = getRankFromScore(score);
+  const { rank, progress, nextThreshold, nextRank, label } = getRankFromScore(score);
   const stats = getGuildStats(score);
   const rankColor = RANK_COLORS[rank];
   const glow = RANK_GLOW[rank];
@@ -76,12 +76,12 @@ export default function Stronghold({
 
   return (
     <>
-      {/* ── Trigger: Bigger building box ── */}
+      {/* ── Floating Trigger ── */}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
         onClick={() => setIsOpen(true)}
-        className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl border-2 flex flex-col items-center justify-center overflow-hidden group"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 flex items-center justify-center overflow-hidden"
         style={{
           background: "linear-gradient(135deg, #0a0a0a, #1a1a1a)",
           borderColor: `${rankColor}40`,
@@ -91,7 +91,7 @@ export default function Stronghold({
         <motion.img
           src={buildingImg}
           alt="stronghold"
-          className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-xl relative z-10"
+          className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-xl relative z-10"
           animate={{ y: [0, -3, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -102,7 +102,7 @@ export default function Stronghold({
 
         {/* Rank badge */}
         <div
-          className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase border backdrop-blur-sm z-20"
+          className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase border backdrop-blur-sm z-20"
           style={{
             background: `${rankColor}20`,
             borderColor: `${rankColor}60`,
@@ -110,11 +110,6 @@ export default function Stronghold({
           }}
         >
           {rank}
-        </div>
-
-        {/* Score */}
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-mono text-white/40 z-20 whitespace-nowrap">
-          {score.toLocaleString()} pts
         </div>
       </motion.button>
 
