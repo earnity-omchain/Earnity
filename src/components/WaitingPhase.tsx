@@ -557,7 +557,7 @@ export default function WaitingPhase({
                 Guild Wars
               </motion.button>
 
-              <Stronghold userId={userId} profile={fullProfile} />
+              <InlineChest userId={userId} profile={fullProfile} />
             </div>
 
             <div className={`mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border ${el?.border ?? "border-white/10"} ${el?.bg ?? "bg-white/5"} backdrop-blur-md text-sm`}>
@@ -618,6 +618,8 @@ export default function WaitingPhase({
           }}
         />
       )}
+
+      <Stronghold userId={userId} profile={fullProfile} />
     </div>
   );
 }
