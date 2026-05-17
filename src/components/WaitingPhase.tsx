@@ -607,7 +607,7 @@ export default function WaitingPhase({
         <div className="h-20" />
       </div>
 
-      {checkInOpen && (
+     {checkInOpen && (
         <DailyCheckIn
           userId={userId}
           onClose={() => setCheckInOpen(false)}
@@ -618,8 +618,8 @@ export default function WaitingPhase({
           }}
         />
       )}
-
-      <Stronghold userId={userId} profile={fullProfile} />
     </div>
-  );
-}
+
+    <Stronghold userId={userId} profile={fullProfile} />
+  </div>
+);
