@@ -600,14 +600,14 @@ export default function WaitingPhase({
           </div>
         </div>
 
-        <div className="px-4 sm:px-8 py-12 max-w-6xl mx-auto">
+            <div className="px-4 sm:px-8 py-12 max-w-6xl mx-auto">
           <GuideSection />
         </div>
 
         <div className="h-20" />
       </div>
 
-     {checkInOpen && (
+      {checkInOpen && (
         <DailyCheckIn
           userId={userId}
           onClose={() => setCheckInOpen(false)}
