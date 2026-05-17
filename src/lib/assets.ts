@@ -53,30 +53,26 @@ export const GAME_ASSETS = {
 
 // ── Guild images ──────────────────────────────────────────────────────────────
 export const GUILD_IMAGES: Record<string, string> = {
-  "Guga":         `${GUILDS}/Guga.png`,
-  "Junsun工会":   `${GUILDS}/Junsun.png`,
-  "The Matrix":   `${GUILDS}/The%20Matrix.png`,
-  "e.g.jhembut": `${GUILDS}/e.g.jhembut.png`,
-  "jhembut":     `${GUILDS}/e.g.jhembut.png`,
-  "INSIDERS": `${GUILDS}/INSIDERS.png`,
-  "Insiders": `${GUILDS}/INSIDERS.png`,
-  "Salvatrucha":  `${GUILDS}/Salvatrucha.png`,
-  "致富web3":     `${GUILDS}/Web3.png`,
-  "Firethernity": `${GUILDS}/Firethernity.png`,
-  "Dajjal":       `${GUILDS}/Dajjal.png`,
-  "V.A.N.E":      `${GUILDS}/V.A.N.E.png`,
-  "闪电":         `${GUILDS}/Lightning_.png`,
-  "jhembut":      `${GUILDS}/e.g.jhembut.png`,
-  "趋势":         `${GUILDS}/Trend.png`,
-  "SeaWay":       `${GUILDS}/SeaWay.png`,
-  "meigui":       `${GUILDS}/meigui.png`,
-  "Insiders":     `${GUILDS}/INSIDERS.png`,
+  "Adorable":     `${GUILDS}/Adorable.png`,
   "bao":          `${GUILDS}/bao.png`,
+  "Dajjal":       `${GUILDS}/Dajjal.png`,
+  "e.g.jhembut":  `${GUILDS}/e.g.jhembut.png`,   // ← FIXED: was "jhembut"
   "Enel":         `${GUILDS}/Enel.png`,
+  "Firethernity": `${GUILDS}/Firethernity.png`,
+  "Guga":         `${GUILDS}/Guga.png`,
   "Hubchainify":  `${GUILDS}/Hubchainify.png`,
   "Hunters":      `${GUILDS}/Hunters.png`,
-  "Adorable":     `${GUILDS}/Adorable.png`,
+  "INSIDERS":     `${GUILDS}/INSIDERS.png`,       // ← FIXED: was "Insiders"
+  "Junsun工会":   `${GUILDS}/Junsun.png`,
+  "meigui":       `${GUILDS}/meigui.png`,
   "Nomads":       `${GUILDS}/Nomads.png`,
+  "Salvatrucha":  `${GUILDS}/Salvatrucha.png`,
+  "SeaWay":       `${GUILDS}/SeaWay.png`,
+  "The Matrix":   `${GUILDS}/The%20Matrix.png`,
+  "V.A.N.E":      `${GUILDS}/V.A.N.E.png`,
+  "致富web3":     `${GUILDS}/Web3.png`,
+  "趋势":         `${GUILDS}/Trend.png`,
+  "闪电":         `${GUILDS}/Lightning_.png`,
 };
 
 // ── Element metadata ──────────────────────────────────────────────────────────
