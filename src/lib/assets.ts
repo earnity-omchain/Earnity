@@ -53,7 +53,7 @@ export const GAME_ASSETS = {
 
 // ── Guild images ──────────────────────────────────────────────────────────────
 export const GUILD_IMAGES: Record<string, string> = {
-  "Emberborn":    `${GUILDS}/Emberborn.png`,
+  "Guga":         `${GUILDS}/Guga.png`,
   "Junsun工会":   `${GUILDS}/Junsun.png`,
   "The Matrix":   `${GUILDS}/The%20Matrix.png`,
   "Salvatrucha":  `${GUILDS}/Salvatrucha.png`,
