@@ -73,6 +73,139 @@ function useCountdown(target: Date) {
   return t;
 }
 
+function InlineChest({ userId, profile }: { userId: string; profile: any }) {
+  const queryClient = useQueryClient();
+  const [reward, setReward] = useState<any>(null);
+  const [isOpening, setIsOpening] = useState(false);
+  const [showReward, setShowReward] = useState(false);
+  const [lastOpened, setLastOpened] = useState(profile?.last_chest_opened);
+
+  useEffect(() => {
+    setLastOpened(profile?.last_chest_opened);
+  }, [profile?.last_chest_opened]);
+
+  const canOpen = canOpenChest(lastOpened);
+  const cooldownRemaining = getChestCooldownRemaining(lastOpened);
+  const cooldownMs = cooldownRemaining * 60 * 60 * 1000;
+  const targetDate = useMemo(() => new Date(Date.now() + Math.max(0, cooldownMs)), [cooldownMs]);
+  const countdown = useCountdown(targetDate);
+
+  const openMutation = useMutation({
+    mutationFn: () => openChest(userId),
+    onSuccess: (result) => {
+      setReward(result.reward);
+      setIsOpening(false);
+      setShowReward(true);
+      setLastOpened(new Date().toISOString());
+      queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setTimeout(() => setShowReward(false), 4000);
+    },
+    onError: (err: any) => {
+      setIsOpening(false);
+      setReward({ type: "error", message: err.message });
+      setShowReward(true);
+      setTimeout(() => setShowReward(false), 3000);
+    },
+  });
+
+  const handleOpen = () => {
+    if (!canOpen || isOpening) return;
+    setIsOpening(true);
+    setReward(null);
+    setShowReward(false);
+    openMutation.mutate();
+  };
+
+  const getRewardIcon = () => {
+    if (!reward || reward.type === "error") return <Sparkles className="w-8 h-8 text-yellow-400" />;
+    switch (reward.type) {
+      case "coin": return <img src={GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
+      default: return <Sparkles className="w-8 h-8 text-yellow-400" />;
+    }
+  };
+
+  const getRewardLabel = () => {
+    if (!reward) return "Opening…";
+    if (reward.type === "error") return reward.message;
+    switch (reward.type) {
+      case "coin": return `${reward.quantity.toLocaleString()} Coins`;
+      case "shard": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Shard`;
+      case "elemental": return `${reward.quantity}x ${ELEMENT_META[reward.subtype]?.label || reward.subtype} Elemental`;
+      case "item": return `${reward.quantity}x ${ITEM_META[reward.subtype]?.label || reward.subtype}`;
+      default: return "Mystery Reward";
+    }
+  };
+
+  const getRewardColor = () => {
+    switch (reward?.type) {
+      case "coin": return "text-yellow-400";
+      case "shard": return "text-blue-400";
+      case "elemental": return "text-purple-400";
+      case "item": return "text-red-400";
+      default: return "text-white";
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <motion.div
+        whileHover={canOpen && !isOpening ? { scale: 1.05 } : {}}
+        whileTap={canOpen && !isOpening ? { scale: 0.95 } : {}}
+        onClick={handleOpen}
+        className={`relative w-20 h-20 rounded-xl border flex items-center justify-center overflow-hidden transition-all ${
+          canOpen && !isOpening
+            ? "border-yellow-500/30 bg-yellow-500/10 cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/20"
+            : "border-zinc-800 bg-zinc-900/50 cursor-not-allowed"
+        }`}
+      >
+        <motion.img
+          src={isOpening ? GAME_ASSETS.mysteryboxOpened : GAME_ASSETS.mysteryboxClosed}
+          alt="chest"
+          className="w-14 h-14 object-contain"
+          animate={isOpening ? { rotate: [0, -8, 8, -8, 8, 0], scale: [1, 1.1, 1] } : {}}
+          transition={{ duration: 0.4, repeat: isOpening ? Infinity : 0 }}
+        />
+
+        {!canOpen && !isOpening && !showReward && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center">
+            <Clock className="w-5 h-5 text-zinc-500" />
+          </div>
+        )}
+
+        <AnimatePresence>
+          {showReward && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm p-1"
+            >
+              <div className="mb-1">{getRewardIcon()}</div>
+              <div className={`text-[10px] font-bold text-center leading-tight ${getRewardColor()}`}>
+                {getRewardLabel()}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <div className="text-[10px] font-mono">
+        {canOpen ? (
+          <span className="text-yellow-500/60">Ready to claim</span>
+        ) : (
+          <span className="text-zinc-500">
+            {countdown.hours}h {countdown.minutes}m {countdown.seconds}s
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut, currentMP, inventory }: {
   full: any; profile: any; referralCodes: any[]; checkInStatus: any;
   signOut: () => void; currentMP?: number; inventory?: any[];
