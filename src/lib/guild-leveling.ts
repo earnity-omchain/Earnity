@@ -40,7 +40,7 @@ export function getRankFromScore(score: number = 0) {
   };
 }
 
-export const RANK_COLORS: Record<<GuildRank, string> = {
+export const RANK_COLORS: Record<GuildRank, string> = {
   E: "#6b7280", D: "#22c55e", C: "#3b82f6", B: "#8b5cf6",
   A: "#f59e0b", S: "#ef4444", SS: "#f97316", SSS: "#fbbf24",
 };
