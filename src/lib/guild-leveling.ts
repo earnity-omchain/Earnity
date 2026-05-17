@@ -45,14 +45,14 @@ export const RANK_COLORS: Record<<GuildRank, string> = {
   A: "#f59e0b", S: "#ef4444", SS: "#f97316", SSS: "#fbbf24",
 };
 
-export const RANK_GLOW: Record<<GuildRank, string> = {
+export const RANK_GLOW: Record<GuildRank, string> = {
   E: "rgba(107,114,128,0.4)", D: "rgba(34,197,94,0.4)",
   C: "rgba(59,130,246,0.4)",  B: "rgba(139,92,246,0.4)",
   A: "rgba(245,158,11,0.4)",  S: "rgba(239,68,68,0.4)",
   SS: "rgba(249,115,22,0.4)", SSS: "rgba(251,191,36,0.5)",
 };
 
-export const RANK_BUILDING_LEVEL: Record<<GuildRank, number> = {
+export const RANK_BUILDING_LEVEL: Record<GuildRank, number> = {
   E: 1, D: 1, C: 2, B: 2, A: 3, S: 3, SS: 4, SSS: 4,
 };
 
