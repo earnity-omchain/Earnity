@@ -11,6 +11,13 @@ interface Profile {
   wallet_address: string | null;
   guild_id: string | null;
   contribution_score: number;
+  coin_balance: number;
+  element: string | null;
+  mp: number;
+  last_chest_opened: string | null;
+  guild_joined_at: string | null;
+  // allow any extra DB columns without breaking
+  [key: string]: any;
 }
 
 interface AuthContextType {
