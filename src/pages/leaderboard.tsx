@@ -50,7 +50,7 @@ export default function Leaderboard() {
     refetchInterval: 30000,
   });
 
-  /* ── Guild ranking — sorted by member coin_balance sum ── */
+  /* ── Guild ranking ── */
   const { data: guildsRaw } = useQuery({
     queryKey: ["leaderboard-guilds"],
     queryFn: async () => {
@@ -83,7 +83,7 @@ export default function Leaderboard() {
     .sort((a: any, b: any) => b.total_coins - a.total_coins)
     .map((g: any, i: number) => ({ ...g, _rank: i + 1 }));
 
-  /* ── User ranking — contribution_score + referral count ── */
+  /* ── User ranking ── */
   const { data: topUsers, isLoading: usersLoading } = useQuery({
     queryKey: ["leaderboard-users"],
     queryFn: async () => {
@@ -116,25 +116,28 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
-  /* ── My real rank + full stats ── */
-  const { data: myRankData } = useQuery({
-    queryKey: ["my-rank-data", profile?.id],
+  /* ── My full stats — fresh DB fetch, NOT stale auth context ── */
+  const { data: myStats } = useQuery({
+    queryKey: ["my-leaderboard-stats", profile?.id],
     queryFn: async () => {
       if (!profile?.id) return null;
 
+      // Fresh row — auth context contribution_score can lag
       const { data: me, error: meErr } = await supabase
         .from("profiles")
         .select("id, username, discord_avatar, element, contribution_score")
         .eq("id", profile.id)
         .single();
-      if (meErr || !me) throw meErr ?? new Error("Profile not found");
+      if (meErr || !me) throw meErr ?? new Error("no profile");
 
+      // Real rank: count users strictly ahead
       const { count: higherCount, error: rankErr } = await supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .gt("contribution_score", me.contribution_score ?? 0);
       if (rankErr) throw rankErr;
 
+      // Referral count
       const { count: refCount, error: refErr } = await supabase
         .from("invite_codes")
         .select("id", { count: "exact", head: true })
@@ -152,28 +155,7 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
-  const myElMeta  = myRankData?.element ? ELEMENT_META[myRankData.element] : null;
-  const myElColor = myRankData?.element ? ELEMENT_COLORS[myRankData.element] : null;
-  const myTop2000 = myRankData ? myRankData.rank <= 2000 : false;
-
-  /* ── Shared column layout ── */
-  const colCls = {
-    rank:     "w-8  text-center shrink-0",
-    avatar:   "w-9  shrink-0",
-    name:     "flex-1 min-w-0",
-    refs:     "w-16 text-center shrink-0 hidden sm:block",
-    points:   "w-24 text-right  shrink-0",
-  };
-
-  /* ── Rank badge helper ── */
-  const RankBadge = ({ rank, dimmed = false }: { rank: number; dimmed?: boolean }) =>
-    rank <= 3 ? (
-      <span className="text-lg">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"}</span>
-    ) : (
-      <span className={`text-sm font-mono tabular-nums ${dimmed ? "text-white/60" : "text-white/30"}`}>
-        {String(rank).padStart(2, "0")}
-      </span>
-    );
+  const isSafe = myStats ? myStats.rank <= 2000 : false;
 
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
@@ -240,7 +222,6 @@ export default function Leaderboard() {
                 return (
                   <div key={guild.id}
                     className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${isMyGuild ? "bg-white/8" : "hover:bg-white/4"}`}>
-
                     <div className="w-8 text-center shrink-0">
                       {guild._rank <= 3 ? (
                         <span className="text-lg">{guild._rank === 1 ? "🥇" : guild._rank === 2 ? "🥈" : "🥉"}</span>
@@ -248,7 +229,6 @@ export default function Leaderboard() {
                         <span className="text-sm font-mono text-white/30">{String(guild._rank).padStart(2, "0")}</span>
                       )}
                     </div>
-
                     <div className="relative shrink-0">
                       <img src={guildImg} alt={guild.name}
                         className="w-11 h-11 rounded-xl object-cover border border-white/10"
@@ -259,7 +239,6 @@ export default function Leaderboard() {
                         {elMeta && <img src={elMeta.img} className="w-2.5 h-2.5 object-contain" alt="" />}
                       </div>
                     </div>
-
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold truncate text-white">{guild.name}</span>
@@ -277,7 +256,6 @@ export default function Leaderboard() {
                         )}
                       </div>
                     </div>
-
                     <div className="text-right shrink-0">
                       <div className="font-mono text-sm tabular-nums text-white">
                         {guild.total_coins.toLocaleString()}
@@ -295,115 +273,105 @@ export default function Leaderboard() {
         </motion.section>
 
         {/* ── USER RANKING ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          // position:relative so the sticky card is scoped to this section
-          className="relative"
-        >
-          {/* Section label row */}
-          <div className="flex items-center gap-2 mb-3">
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="flex items-center gap-2 mb-4">
             <Star className="w-4 h-4 text-blue-400" />
             <h2 className="text-sm font-semibold uppercase tracking-widest text-white/60">User Ranking</h2>
             <span className="ml-auto text-xs text-white/30">Top 2000 survive</span>
           </div>
 
-          {/* ── STICKY YOUR-RANK CARD ──────────────────────────────────────
-              • sticky top-[var(--nav-h)] — sits just under the nav bar
-              • z-30 keeps it above the list rows
-              • shown whether data is loading or loaded (skeleton fallback)
-          ───────────────────────────────────────────────────────────────── */}
-          <div className="sticky top-[64px] z-30 mb-3">
-            {myRankData ? (
-              /* ── Loaded state ── */
-              <div className="rounded-xl border border-blue-500/40 bg-[#0a1628]/90 backdrop-blur-xl px-4 py-3 shadow-xl shadow-blue-950/40
-                              ring-1 ring-blue-500/10">
+          {/* ── STICKY YOUR-RANK CARD ──────────────────────────────────
+              Key fixes vs previous version:
+              1. top-[64px] sticks below nav, not behind it
+              2. Uses myStats (fresh DB) not profile (stale auth context)
+              3. Refs + Points labels always rendered — no hidden sm:block
+              4. Points shows myStats.contribution_score, not profile's
+          ──────────────────────────────────────────────────────────── */}
+          {profile && (
+            <div className="sticky top-[64px] z-30 mb-4">
+              <div className="rounded-xl border border-blue-500/30 bg-blue-950/70 backdrop-blur-xl px-4 py-3 shadow-xl shadow-blue-950/50">
                 <div className="flex items-center gap-3">
 
                   {/* Rank */}
-                  <div className={colCls.rank}>
-                    <RankBadge rank={myRankData.rank} dimmed />
+                  <div className="w-8 text-center shrink-0">
+                    {myStats && myStats.rank <= 3 ? (
+                      <span className="text-lg">
+                        {myStats.rank === 1 ? "🥇" : myStats.rank === 2 ? "🥈" : "🥉"}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-mono text-white/60 tabular-nums">
+                        {myStats ? String(myStats.rank).padStart(2, "0") : "—"}
+                      </span>
+                    )}
                   </div>
 
                   {/* Avatar */}
-                  <div className={colCls.avatar}>
-                    {myRankData.discord_avatar ? (
-                      <img src={myRankData.discord_avatar} alt=""
-                        className="w-8 h-8 rounded-lg object-cover border border-blue-500/30" />
+                  <div className="shrink-0">
+                    {profile.discord_avatar ? (
+                      <img src={profile.discord_avatar} alt=""
+                        className="w-8 h-8 rounded-lg object-cover border border-white/20" />
                     ) : (
                       <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-300">
-                        {myRankData.username?.charAt(0).toUpperCase()}
+                        {profile.username?.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
 
                   {/* Name + element */}
-                  <div className={colCls.name}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold truncate text-white">{myRankData.username}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold truncate text-white">{profile.username}</span>
                       <span className="text-[10px] text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded-full shrink-0 bg-blue-500/10">
                         You
                       </span>
                     </div>
-                    {myElMeta && (
+                    {profile.element && ELEMENT_META[profile.element] && (
                       <div className="inline-flex items-center gap-1 mt-0.5 text-[10px]"
-                        style={{ color: myElColor ?? undefined }}>
-                        <img src={myElMeta.img} className="w-3 h-3 object-contain" alt="" />
-                        <span className="capitalize">{myRankData.element}</span>
+                        style={{ color: ELEMENT_COLORS[profile.element] }}>
+                        <img src={ELEMENT_META[profile.element].img} className="w-3 h-3 object-contain" alt="" />
+                        <span className="capitalize">{profile.element}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Referrals */}
-                  <div className={colCls.refs}>
-                    <span className="text-sm font-mono text-white/80">
-                      {myRankData.referral_count > 0 ? myRankData.referral_count : "—"}
-                    </span>
+                  {/* Refs — always visible, labelled */}
+                  <div className="text-center shrink-0">
+                    <div className="text-[9px] text-white/30 uppercase tracking-wider">Refs</div>
+                    <div className="text-sm font-mono text-white/80 tabular-nums">
+                      {myStats ? (myStats.referral_count > 0 ? myStats.referral_count : "—") : "—"}
+                    </div>
                   </div>
 
-                  {/* Points + safe badge */}
-                  <div className={colCls.points}>
-                    <div className="flex items-center justify-end gap-2">
-                      {myTop2000 && (
-                        <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400">
+                  {/* Points — always visible, labelled, from fresh fetch */}
+                  <div className="text-right shrink-0">
+                    <div className="text-[9px] text-white/30 uppercase tracking-wider">Points</div>
+                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                      {isSafe && (
+                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400 whitespace-nowrap">
                           ✓ Safe
                         </span>
                       )}
                       <span className="font-mono text-sm tabular-nums text-white font-bold">
-                        {(myRankData.contribution_score ?? 0).toLocaleString()}
+                        {myStats
+                          ? (myStats.contribution_score ?? 0).toLocaleString()
+                          : (profile.contribution_score ?? 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
-                </div>
-              </div>
-            ) : profile?.id ? (
-              /* ── Loading skeleton — only when logged in and data isn't ready ── */
-              <div className="rounded-xl border border-blue-500/20 bg-[#0a1628]/80 backdrop-blur-xl px-4 py-3 animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-4 rounded bg-white/10" />
-                  <div className="w-8 h-8 rounded-lg bg-white/10" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-28 rounded bg-white/10" />
-                    <div className="h-2.5 w-16 rounded bg-white/10" />
-                  </div>
-                  <div className="w-16 h-3 rounded bg-white/10 hidden sm:block" />
-                  <div className="w-16 h-4 rounded bg-white/10" />
-                </div>
-              </div>
-            ) : null}
-          </div>
 
-          {/* ── List ── */}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* List */}
           <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden">
-
-            {/* Column headers — uses same colCls widths for perfect alignment */}
             <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/10 text-[10px] uppercase tracking-wider text-white/30">
-              <div className={colCls.rank}>#</div>
-              <div className={colCls.avatar} />
-              <div className={colCls.name}>User</div>
-              <div className={colCls.refs}>Refs</div>
-              <div className={colCls.points}>Points</div>
+              <div className="w-8 text-center">#</div>
+              <div className="w-9" />
+              <div className="flex-1">User</div>
+              <div className="w-16 text-center hidden sm:block">Refs</div>
+              <div className="w-24 text-right">Points</div>
             </div>
 
             <div className="divide-y divide-white/8">
@@ -423,12 +391,14 @@ export default function Leaderboard() {
                 return (
                   <div key={user.id}
                     className={`flex items-center gap-3 px-5 py-3 transition-colors ${isMe ? "bg-white/8" : "hover:bg-white/4"}`}>
-
-                    <div className={colCls.rank}>
-                      <RankBadge rank={rank} />
+                    <div className="w-8 text-center shrink-0">
+                      {rank <= 3 ? (
+                        <span className="text-lg">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"}</span>
+                      ) : (
+                        <span className="text-sm font-mono text-white/30 tabular-nums">{String(rank).padStart(2, "0")}</span>
+                      )}
                     </div>
-
-                    <div className={colCls.avatar}>
+                    <div className="w-9 shrink-0">
                       {user.discord_avatar ? (
                         <img src={user.discord_avatar} alt=""
                           className="w-8 h-8 rounded-lg object-cover border border-white/10" />
@@ -438,8 +408,7 @@ export default function Leaderboard() {
                         </div>
                       )}
                     </div>
-
-                    <div className={colCls.name}>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-medium truncate ${isMe ? "text-white" : "text-white/80"}`}>
                           {user.username}
@@ -458,14 +427,12 @@ export default function Leaderboard() {
                         </div>
                       )}
                     </div>
-
-                    <div className={colCls.refs}>
+                    <div className="w-16 text-center shrink-0 hidden sm:block">
                       <span className="text-sm font-mono text-white/60">
                         {user.referral_count > 0 ? user.referral_count : "—"}
                       </span>
                     </div>
-
-                    <div className={colCls.points}>
+                    <div className="w-24 text-right shrink-0">
                       <div className="flex items-center justify-end gap-2">
                         {top2000 && (
                           <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400">
