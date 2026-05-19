@@ -20,7 +20,7 @@ export default function Leaderboard() {
   const [, setLocation] = useLocation();
   const { profile } = useAuth();
 
-  /* ── Real member count (no limit) ── */
+  /* ── Real member count ── */
   const { data: memberCount } = useQuery({
     queryKey: ["member-count"],
     queryFn: async () => {
@@ -116,46 +116,74 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
-  /* ── My full stats — fresh DB fetch, NOT stale auth context ── */
-  const { data: myStats } = useQuery({
-    queryKey: ["my-leaderboard-stats", profile?.id],
-    queryFn: async () => {
-      if (!profile?.id) return null;
+  /* ── My stats — three separate queries so one failure doesn't kill the others ── */
 
-      // Fresh row — auth context contribution_score can lag
-      const { data: me, error: meErr } = await supabase
+  // 1. Fresh profile row (source of truth for score + avatar)
+  const { data: myProfile } = useQuery({
+    queryKey: ["my-profile-fresh", profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, username, discord_avatar, element, contribution_score")
-        .eq("id", profile.id)
+        .eq("id", profile!.id)
         .single();
-      if (meErr || !me) throw meErr ?? new Error("no profile");
-
-      // Real rank: count users strictly ahead
-      const { count: higherCount, error: rankErr } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .gt("contribution_score", me.contribution_score ?? 0);
-      if (rankErr) throw rankErr;
-
-      // Referral count
-      const { count: refCount, error: refErr } = await supabase
-        .from("invite_codes")
-        .select("id", { count: "exact", head: true })
-        .eq("created_by", profile.id)
-        .not("used_by", "is", null);
-      if (refErr) throw refErr;
-
-      return {
-        ...me,
-        rank: (higherCount ?? 0) + 1,
-        referral_count: refCount ?? 0,
-      };
+      if (error) {
+        console.error("[my-profile-fresh] error:", error);
+        throw error;
+      }
+      return data;
     },
     enabled: !!profile?.id,
     refetchInterval: 15000,
   });
 
-  const isSafe = myStats ? myStats.rank <= 2000 : false;
+  // 2. Real rank — count users with strictly higher score
+  const { data: myRank } = useQuery({
+    queryKey: ["my-rank", myProfile?.contribution_score, profile?.id],
+    queryFn: async () => {
+      const score = myProfile?.contribution_score ?? 0;
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .gt("contribution_score", score);
+      if (error) {
+        console.error("[my-rank] error:", error);
+        throw error;
+      }
+      return (count ?? 0) + 1;
+    },
+    // Only run once we have the profile score
+    enabled: !!profile?.id && myProfile !== undefined,
+    refetchInterval: 15000,
+  });
+
+  // 3. Referral count
+  const { data: myRefCount } = useQuery({
+    queryKey: ["my-ref-count", profile?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("invite_codes")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by", profile!.id)
+        .not("used_by", "is", null);
+      if (error) {
+        console.error("[my-ref-count] error:", error);
+        throw error;
+      }
+      return count ?? 0;
+    },
+    enabled: !!profile?.id,
+    refetchInterval: 15000,
+  });
+
+  // Display values — fall back to profile context while queries load
+  const displayScore    = myProfile?.contribution_score ?? profile?.contribution_score ?? 0;
+  const displayRank     = myRank;
+  const displayRefs     = myRefCount;
+  const displayElement  = myProfile?.element ?? profile?.element;
+  const displayAvatar   = myProfile?.discord_avatar ?? profile?.discord_avatar;
+  const displayUsername = myProfile?.username ?? profile?.username;
+  const isSafe          = displayRank !== undefined && displayRank <= 2000;
 
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
@@ -280,13 +308,7 @@ export default function Leaderboard() {
             <span className="ml-auto text-xs text-white/30">Top 2000 survive</span>
           </div>
 
-          {/* ── STICKY YOUR-RANK CARD ──────────────────────────────────
-              Key fixes vs previous version:
-              1. top-[64px] sticks below nav, not behind it
-              2. Uses myStats (fresh DB) not profile (stale auth context)
-              3. Refs + Points labels always rendered — no hidden sm:block
-              4. Points shows myStats.contribution_score, not profile's
-          ──────────────────────────────────────────────────────────── */}
+          {/* ── STICKY YOUR-RANK CARD ── */}
           {profile && (
             <div className="sticky top-[64px] z-30 mb-4">
               <div className="rounded-xl border border-blue-500/30 bg-blue-950/70 backdrop-blur-xl px-4 py-3 shadow-xl shadow-blue-950/50">
@@ -294,25 +316,25 @@ export default function Leaderboard() {
 
                   {/* Rank */}
                   <div className="w-8 text-center shrink-0">
-                    {myStats && myStats.rank <= 3 ? (
+                    {displayRank !== undefined && displayRank <= 3 ? (
                       <span className="text-lg">
-                        {myStats.rank === 1 ? "🥇" : myStats.rank === 2 ? "🥈" : "🥉"}
+                        {displayRank === 1 ? "🥇" : displayRank === 2 ? "🥈" : "🥉"}
                       </span>
                     ) : (
                       <span className="text-sm font-mono text-white/60 tabular-nums">
-                        {myStats ? String(myStats.rank).padStart(2, "0") : "—"}
+                        {displayRank !== undefined ? String(displayRank).padStart(2, "0") : "…"}
                       </span>
                     )}
                   </div>
 
                   {/* Avatar */}
                   <div className="shrink-0">
-                    {profile.discord_avatar ? (
-                      <img src={profile.discord_avatar} alt=""
+                    {displayAvatar ? (
+                      <img src={displayAvatar} alt=""
                         className="w-8 h-8 rounded-lg object-cover border border-white/20" />
                     ) : (
                       <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-300">
-                        {profile.username?.charAt(0).toUpperCase()}
+                        {displayUsername?.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -320,41 +342,39 @@ export default function Leaderboard() {
                   {/* Name + element */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold truncate text-white">{profile.username}</span>
+                      <span className="text-sm font-bold truncate text-white">{displayUsername}</span>
                       <span className="text-[10px] text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded-full shrink-0 bg-blue-500/10">
                         You
                       </span>
                     </div>
-                    {profile.element && ELEMENT_META[profile.element] && (
+                    {displayElement && ELEMENT_META[displayElement] && (
                       <div className="inline-flex items-center gap-1 mt-0.5 text-[10px]"
-                        style={{ color: ELEMENT_COLORS[profile.element] }}>
-                        <img src={ELEMENT_META[profile.element].img} className="w-3 h-3 object-contain" alt="" />
-                        <span className="capitalize">{profile.element}</span>
+                        style={{ color: ELEMENT_COLORS[displayElement] }}>
+                        <img src={ELEMENT_META[displayElement].img} className="w-3 h-3 object-contain" alt="" />
+                        <span className="capitalize">{displayElement}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Refs — always visible, labelled */}
+                  {/* Refs — always visible */}
                   <div className="text-center shrink-0">
-                    <div className="text-[9px] text-white/30 uppercase tracking-wider">Refs</div>
+                    <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">Refs</div>
                     <div className="text-sm font-mono text-white/80 tabular-nums">
-                      {myStats ? (myStats.referral_count > 0 ? myStats.referral_count : "—") : "—"}
+                      {displayRefs === undefined ? "…" : displayRefs > 0 ? displayRefs : "—"}
                     </div>
                   </div>
 
-                  {/* Points — always visible, labelled, from fresh fetch */}
+                  {/* Points — always visible */}
                   <div className="text-right shrink-0">
-                    <div className="text-[9px] text-white/30 uppercase tracking-wider">Points</div>
-                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                    <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">Points</div>
+                    <div className="flex items-center justify-end gap-1.5">
                       {isSafe && (
                         <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400 whitespace-nowrap">
                           ✓ Safe
                         </span>
                       )}
                       <span className="font-mono text-sm tabular-nums text-white font-bold">
-                        {myStats
-                          ? (myStats.contribution_score ?? 0).toLocaleString()
-                          : (profile.contribution_score ?? 0).toLocaleString()}
+                        {displayScore.toLocaleString()}
                       </span>
                     </div>
                   </div>
