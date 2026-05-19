@@ -324,18 +324,18 @@ export default function Landing() {
 
   // Full profile — flat select, no join to avoid RLS issues
   const { data: fullProfile } = useQuery({
-    queryKey: ["landing-full-profile", session?.user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, discord_avatar, wallet_address, element, contribution_score, guild_id, coins")
-        .eq("id", session!.user.id)
-        .single();
-      return data;
-    },
-    enabled: !!session?.user?.id,
-    refetchInterval: 60_000,
-  });
+  queryKey: ["landing-full-profile", session?.user?.id],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session!.user.id)
+      .single();
+    return data;
+  },
+  enabled: !!session?.user?.id,
+  refetchInterval: 60_000,
+});
 
   // Referral codes — only fetch in waiting phase
   const { data: referralCodes } = useQuery({
