@@ -15,11 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Swords, Shield, Zap, Heart, Wind, TrendingUp, Star, Gem,
+  Swords, Shield, Zap, Heart, Wind, TrendingUp, Star,
 } from "lucide-react";
-import ElementalCraft from "@/components/elemental-craft";
 
-/* ── Stat Row ── */
 function StatRow({ icon, label, value, color, max, delay = 0 }: {
   icon: React.ReactNode; label: string; value: number;
   color: string; max: number; delay?: number;
@@ -44,27 +42,22 @@ function StatRow({ icon, label, value, color, max, delay = 0 }: {
   );
 }
 
-/* ── Stronghold ── */
 export default function Stronghold() {
   const { session, profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [forgeOpen, setForgeOpen] = useState(false);
 
-  // Read contribution_score — the correct rank source
   const score = profile?.contribution_score ?? 0;
-
   const { rank, progress, nextThreshold, nextRank, label } = getRankFromScore(score);
   const stats = getGuildStats(score);
   const rankColor = RANK_COLORS[rank];
   const glow = RANK_GLOW[rank];
   const buildingImg = getBuildingImage(rank);
 
-  // Only show when logged in
   if (!session || !profile) return null;
 
   return (
     <>
-      {/* ── Floating button — bottom right, always visible ── */}
+      {/* Floating button */}
       <motion.button
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
@@ -77,22 +70,20 @@ export default function Stronghold() {
         }}
       >
         <motion.img
-          src={buildingImg}
-          alt="stronghold"
+          src={buildingImg} alt="stronghold"
           className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-xl relative z-10"
           animate={{ y: [0, -3, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         />
         <div className="absolute inset-0 opacity-20 z-0"
           style={{ background: `radial-gradient(circle at 50% 80%, ${rankColor}, transparent 70%)` }} />
-        <div
-          className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase border backdrop-blur-sm z-20"
+        <div className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase border backdrop-blur-sm z-20"
           style={{ background: `${rankColor}20`, borderColor: `${rankColor}60`, color: rankColor }}>
           {rank}
         </div>
       </motion.button>
 
-      {/* ── Stronghold dialog ── */}
+      {/* Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="bg-zinc-950 border-zinc-800 max-w-md overflow-hidden">
           <DialogHeader>
@@ -102,37 +93,29 @@ export default function Stronghold() {
           </DialogHeader>
 
           <div className="flex flex-col items-center py-4">
-            {/* Building */}
             <motion.div className="relative mb-6"
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
-              <div className="absolute inset-0 blur-2xl opacity-40 rounded-full"
-                style={{ background: glow }} />
-              <img src={buildingImg} alt="stronghold"
-                className="relative w-40 h-40 object-contain drop-shadow-2xl" />
+              <div className="absolute inset-0 blur-2xl opacity-40 rounded-full" style={{ background: glow }} />
+              <img src={buildingImg} alt="stronghold" className="relative w-40 h-40 object-contain drop-shadow-2xl" />
             </motion.div>
 
-            {/* Rank */}
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", damping: 12 }}
               className="mb-1 px-4 py-1 rounded-full border text-sm font-black uppercase tracking-widest"
-              style={{ color: rankColor, borderColor: `${rankColor}40`,
-                background: `${rankColor}10`, textShadow: `0 0 12px ${glow}` }}>
+              style={{ color: rankColor, borderColor: `${rankColor}40`, background: `${rankColor}10`, textShadow: `0 0 12px ${glow}` }}>
               {rank} Rank — {label}
             </motion.div>
 
             <div className="text-xs text-white/30 font-mono mb-1">
               {score.toLocaleString()} Points
             </div>
-
-            {/* Rank thresholds info */}
             <div className="text-[10px] text-white/20 font-mono mb-4">
               E≥100 · D≥300 · C≥600 · B≥1000 · A≥2000 · S≥3500
             </div>
 
-            {/* Progress */}
             {nextThreshold ? (
               <div className="w-full mb-6 px-1">
                 <div className="flex justify-between text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
@@ -157,8 +140,7 @@ export default function Stronghold() {
               </div>
             )}
 
-            {/* Stats */}
-            <div className="w-full grid grid-cols-2 gap-2 mb-4">
+            <div className="w-full grid grid-cols-2 gap-2">
               <StatRow icon={<Swords className="w-3.5 h-3.5 text-red-400" />} label="Attack" value={stats.attack} color="#ef4444" max={110} delay={0} />
               <StatRow icon={<Shield className="w-3.5 h-3.5 text-blue-400" />} label="Defense" value={stats.defense} color="#3b82f6" max={90} delay={0.05} />
               <StatRow icon={<Zap className="w-3.5 h-3.5 text-purple-400" />} label="Magic" value={stats.magic} color="#a855f7" max={120} delay={0.1} />
@@ -166,20 +148,9 @@ export default function Stronghold() {
               <StatRow icon={<Wind className="w-3.5 h-3.5 text-cyan-400" />} label="Speed" value={stats.speed} color="#06b6d4" max={35} delay={0.2} />
               <StatRow icon={<TrendingUp className="w-3.5 h-3.5 text-yellow-400" />} label="Power" value={score} color="#eab308" max={10000} delay={0.25} />
             </div>
-
-            {/* Forge shortcut */}
-            <button
-              onClick={() => { setIsOpen(false); setForgeOpen(true); }}
-              className="w-full py-2.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-400 text-sm font-bold flex items-center justify-center gap-2 hover:bg-purple-500/20 transition-colors"
-            >
-              <Gem className="w-4 h-4" /> Open Elemental Forge
-            </button>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* ── Elemental Forge dialog ── */}
-      <ElementalCraft open={forgeOpen} onOpenChange={setForgeOpen} />
     </>
   );
 }
