@@ -7,6 +7,7 @@ import {
   Zap, Heart, Skull, Gem, ChevronDown,
   Flame, Droplets, Mountain, Wind, TreePine, CloudLightning,
   Copy, Check, Trophy, Scroll, ChevronRight, User,
+  Star, Gift,
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { auth, supabase } from "@/lib/supabase";
@@ -77,18 +78,107 @@ function useCountdown(target: Date) {
   return t;
 }
 
-/* ── Inline Chest — bigger, better timer ── */
+/* ── Daily Check-In Button (replaces inventory in menu) ── */
+function DailyCheckInButton({ 
+  userId, 
+  checkInStatus, 
+  onClaim 
+}: { 
+  userId: string; 
+  checkInStatus: any; 
+  onClaim: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [claimed, setClaimed] = useState(false);
+  
+  const canCheckIn = checkInStatus?.can_check_in ?? false;
+  const streak = checkInStatus?.current_streak ?? 0;
+  
+  const claimMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .rpc("perform_daily_checkin", { p_user_id: userId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      setClaimed(true);
+      onClaim();
+      queryClient.invalidateQueries({ queryKey: ["checkin-status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
+    },
+  });
+
+  useEffect(() => {
+    if (canCheckIn) setClaimed(false);
+  }, [canCheckIn]);
+
+  if (!canCheckIn && !claimed) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+        <Clock className="w-4 h-4 text-white/40" />
+        <span className="text-xs text-white/50">Check-in available tomorrow</span>
+      </div>
+    );
+  }
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => claimMutation.mutate()}
+      disabled={!canCheckIn || claimMutation.isPending || claimed}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+        claimed 
+          ? "bg-green-500/10 border-green-500/30 text-green-400" 
+          : "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/40 text-yellow-400 hover:from-yellow-500/30 hover:to-orange-500/30"
+      }`}
+    >
+      {claimed ? (
+        <>
+          <Check className="w-5 h-5" />
+          <div className="text-left">
+            <div className="text-sm font-bold">Claimed!</div>
+            <div className="text-[10px] text-white/40">Come back tomorrow</div>
+          </div>
+        </>
+      ) : claimMutation.isPending ? (
+        <>
+          <Sparkles className="w-5 h-5 animate-spin" />
+          <div className="text-sm font-bold">Claiming...</div>
+        </>
+      ) : (
+        <>
+          <Gift className="w-5 h-5" />
+          <div className="text-left">
+            <div className="text-sm font-bold">Claim Daily Reward</div>
+            <div className="text-[10px] text-white/40">
+              {streak > 0 ? `${streak} day streak 🔥` : "Start your streak"}
+            </div>
+          </div>
+        </>
+      )}
+      {!claimed && !claimMutation.isPending && canCheckIn && (
+        <motion.div 
+          className="ml-auto w-2 h-2 rounded-full bg-yellow-400"
+          animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+      )}
+    </motion.button>
+  );
+}
+
+/* ── Inline Chest — BIGGER, MORE BEAUTIFUL, TIMER ALWAYS VISIBLE ── */
 function InlineChest({ userId, profile }: { userId: string; profile: any }) {
   const queryClient = useQueryClient();
   const [reward, setReward] = useState<any>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [showReward, setShowReward] = useState(false);
-  const [lastOpened, setLastOpened] = useState(profile?.last_chest_opened);
-
-  useEffect(() => {
-    setLastOpened(profile?.last_chest_opened);
-  }, [profile?.last_chest_opened]);
-
+  
+  // CRITICAL: Always derive state from profile.last_chest_opened (server truth)
+  const lastOpened = profile?.last_chest_opened;
   const canOpen = canOpenChest(lastOpened);
   const cooldownRemaining = getChestCooldownRemaining(lastOpened);
   const cooldownMs = cooldownRemaining * 60 * 60 * 1000;
@@ -101,9 +191,10 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
       setReward(result.reward);
       setIsOpening(false);
       setShowReward(true);
-      setLastOpened(new Date().toISOString());
+      // Invalidate the EXACT query keys that landing.tsx uses
+      queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
       setTimeout(() => setShowReward(false), 4000);
     },
     onError: (err: any) => {
@@ -123,13 +214,13 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
   };
 
   const getRewardIcon = () => {
-    if (!reward || reward.type === "error") return <Sparkles className="w-8 h-8 text-yellow-400" />;
+    if (!reward || reward.type === "error") return <Sparkles className="w-10 h-10 text-yellow-400" />;
     switch (reward.type) {
-      case "coin": return <img src={GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-8 h-8 object-contain" alt="" />;
-      default: return <Sparkles className="w-8 h-8 text-yellow-400" />;
+      case "coin": return <img src={GAME_ASSETS.coin} className="w-10 h-10 object-contain" alt="" />;
+      case "shard": return <img src={ELEMENT_META[reward.subtype]?.shard || GAME_ASSETS.coin} className="w-10 h-10 object-contain" alt="" />;
+      case "elemental": return <img src={ELEMENT_META[reward.subtype]?.img || GAME_ASSETS.coin} className="w-10 h-10 object-contain" alt="" />;
+      case "item": return <img src={ITEM_META[reward.subtype]?.image || GAME_ASSETS.coin} className="w-10 h-10 object-contain" alt="" />;
+      default: return <Sparkles className="w-10 h-10 text-yellow-400" />;
     }
   };
 
@@ -156,40 +247,73 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Chest box — bigger than before */}
+    <div className="flex flex-col items-center gap-4">
+      {/* BIGGER, MORE BEAUTIFUL CHEST */}
       <motion.div
-        whileHover={canOpen && !isOpening ? { scale: 1.06 } : {}}
-        whileTap={canOpen && !isOpening ? { scale: 0.94 } : {}}
+        whileHover={canOpen && !isOpening ? { scale: 1.08, y: -4 } : {}}
+        whileTap={canOpen && !isOpening ? { scale: 0.95 } : {}}
         onClick={handleOpen}
-        className={`relative w-28 h-28 rounded-2xl border-2 flex items-center justify-center overflow-hidden transition-all ${
+        className={`relative w-36 h-36 rounded-3xl border-2 flex items-center justify-center overflow-hidden transition-all ${
           canOpen && !isOpening
-            ? "border-yellow-500/40 bg-yellow-500/10 cursor-pointer hover:border-yellow-400/60 hover:bg-yellow-500/20 shadow-[0_0_24px_rgba(234,179,8,0.15)]"
-            : "border-zinc-700/60 bg-zinc-900/60 cursor-not-allowed"
+            ? "border-yellow-400/50 bg-gradient-to-br from-yellow-500/20 via-orange-500/10 to-yellow-600/20 cursor-pointer hover:border-yellow-300/70 hover:shadow-[0_0_40px_rgba(234,179,8,0.25)]"
+            : "border-zinc-700/50 bg-zinc-900/40 cursor-not-allowed"
         }`}
       >
-        {/* Glow ring when ready */}
+        {/* Animated glow ring when ready */}
         {canOpen && !isOpening && (
           <motion.div
-            className="absolute inset-0 rounded-2xl"
-            animate={{ boxShadow: ["0 0 0px rgba(234,179,8,0)", "0 0 20px rgba(234,179,8,0.3)", "0 0 0px rgba(234,179,8,0)"] }}
+            className="absolute inset-0 rounded-3xl"
+            animate={{ 
+              boxShadow: [
+                "0 0 0px rgba(234,179,8,0)", 
+                "0 0 30px rgba(234,179,8,0.2)", 
+                "0 0 0px rgba(234,179,8,0)"
+              ] 
+            }}
             transition={{ duration: 2, repeat: Infinity }}
           />
+        )}
+
+        {/* Floating particles when ready */}
+        {canOpen && !isOpening && (
+          <>
+            <motion.div
+              className="absolute w-1 h-1 rounded-full bg-yellow-400/60"
+              animate={{ y: [-20, -60], x: [-10, 10], opacity: [0, 1, 0] }}
+              transition={{ duration: 2, repeat: Infinity, delay: 0 }}
+            />
+            <motion.div
+              className="absolute w-1.5 h-1.5 rounded-full bg-orange-400/40"
+              animate={{ y: [-10, -50], x: [10, -10], opacity: [0, 1, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+            />
+            <motion.div
+              className="absolute w-1 h-1 rounded-full bg-yellow-300/50"
+              animate={{ y: [-15, -55], x: [5, 15], opacity: [0, 1, 0] }}
+              transition={{ duration: 2.2, repeat: Infinity, delay: 1 }}
+            />
+          </>
         )}
 
         <motion.img
           src={isOpening ? GAME_ASSETS.mysteryboxOpened : GAME_ASSETS.mysteryboxClosed}
           alt="chest"
-          className="w-18 h-18 object-contain"
-          style={{ width: 72, height: 72 }}
-          animate={isOpening ? { rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.12, 1] } : {}}
-          transition={{ duration: 0.4, repeat: isOpening ? Infinity : 0 }}
+          className="w-24 h-24 object-contain relative z-10"
+          animate={isOpening ? { rotate: [0, -12, 12, -12, 12, 0], scale: [1, 1.15, 1] } : canOpen ? { y: [0, -3, 0] } : {}}
+          transition={isOpening ? { duration: 0.4, repeat: Infinity } : { duration: 2, repeat: Infinity }}
         />
 
-        {/* Locked overlay */}
+        {/* Locked overlay with timer ALWAYS VISIBLE */}
         {!canOpen && !isOpening && !showReward && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center rounded-2xl">
-            <Clock className="w-6 h-6 text-zinc-500" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl z-20">
+            <Clock className="w-8 h-8 text-zinc-400 mb-2" />
+            <div className="text-xs font-mono font-bold text-zinc-300 tabular-nums">
+              {String(countdown.hours).padStart(2, "0")}
+              <span className="text-zinc-600">:</span>
+              {String(countdown.minutes).padStart(2, "0")}
+              <span className="text-zinc-600">:</span>
+              {String(countdown.seconds).padStart(2, "0")}
+            </div>
           </div>
         )}
 
@@ -200,51 +324,63 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm p-2 rounded-2xl"
+              className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/95 backdrop-blur-md p-3 rounded-3xl z-30"
             >
-              <div className="mb-1">{getRewardIcon()}</div>
-              <div className={`text-[10px] font-bold text-center leading-tight ${getRewardColor()}`}>
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 12 }}
+              >
+                {getRewardIcon()}
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className={`text-sm font-bold text-center mt-2 ${getRewardColor()}`}
+              >
                 {getRewardLabel()}
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Timer — improved */}
-      <div className="flex flex-col items-center gap-0.5">
+      {/* Timer / Status — ALWAYS VISIBLE, DERIVED FROM SERVER */}
+      <div className="flex flex-col items-center gap-1">
         {canOpen ? (
-          <motion.span
-            className="text-xs font-bold text-yellow-400 tracking-wide"
-            animate={{ opacity: [1, 0.5, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/30"
+            animate={{ opacity: [1, 0.7, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
           >
-            ✦ Ready to Claim
-          </motion.span>
+            <Sparkles className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm font-bold text-yellow-400">Ready to Open!</span>
+          </motion.div>
         ) : (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/80 border border-zinc-800">
-            <Clock className="w-3 h-3 text-zinc-500" />
-            <span className="text-xs font-mono font-bold text-zinc-300 tabular-nums">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900/80 border border-zinc-700">
+            <Clock className="w-4 h-4 text-zinc-500" />
+            <span className="text-sm font-mono font-bold text-zinc-300 tabular-nums">
               {String(countdown.hours).padStart(2, "0")}
-              <span className="text-zinc-600 mx-0.5">:</span>
+              <span className="text-zinc-600 mx-1">:</span>
               {String(countdown.minutes).padStart(2, "0")}
-              <span className="text-zinc-600 mx-0.5">:</span>
+              <span className="text-zinc-600 mx-1">:</span>
               {String(countdown.seconds).padStart(2, "0")}
             </span>
           </div>
         )}
-        <span className="text-[10px] text-zinc-600 uppercase tracking-wider">Mystery Chest</span>
+        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Mystery Chest</span>
       </div>
     </div>
   );
 }
 
-/* ── Profile Menu ── */
+/* ── Profile Menu — INVENTORY REMOVED, DAILY CHECK-IN ADDED ── */
 function ProfileMenu({
-  full, profile, referralCodes, checkInStatus, signOut, currentMP, inventory,
+  full, profile, referralCodes, checkInStatus, signOut, currentMP, userId, onCheckInClaim,
 }: {
   full: any; profile: any; referralCodes: any[]; checkInStatus: any;
-  signOut: () => void; currentMP?: number; inventory?: any[];
+  signOut: () => void; currentMP?: number; userId: string; onCheckInClaim: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
@@ -254,11 +390,7 @@ function ProfileMenu({
   const username = full?.username ?? profile?.username ?? "?";
   const score = full?.contribution_score ?? 0;
   const coins = full?.coin_balance ?? full?.coins ?? 0;
-  const streak = checkInStatus?.current_streak ?? 0;
   const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
-
-  const getItemQty = (type: string) =>
-    inventory?.find((i: any) => i.item_type === type)?.quantity || 0;
 
   return (
     <div className="relative">
@@ -348,29 +480,25 @@ function ProfileMenu({
               </div>
             </div>
 
-            {/* Inventory */}
+            {/* DAILY CHECK-IN (replaces inventory) */}
             <div className="px-4 py-3 border-b border-white/10">
-              <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { type: GAME_ITEMS.NUKE, label: "Nukes", color: "text-red-400", icon: Skull },
-                  { type: GAME_ITEMS.DRAIN, label: "Drains", color: "text-orange-400", icon: Droplets },
-                  { type: GAME_ITEMS.RUG, label: "Rugs", color: "text-purple-400", icon: Swords },
-                  { type: GAME_ITEMS.SHIELD, label: "Shields", color: "text-blue-400", icon: Shield },
-                  { type: GAME_ITEMS.HP_POTION, label: "HP Pot", color: "text-green-400", icon: Heart },
-                  { type: GAME_ITEMS.MP_POTION, label: "MP Pot", color: "text-yellow-400", icon: Zap },
-                ].map(({ type, label, color, icon: Icon }) => (
-                  <div
-                    key={type}
-                    className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2"
-                  >
-                    <Icon className={`w-4 h-4 ${color}`} />
-                    <span className="text-sm font-bold text-white">{getItemQty(type)}</span>
-                    <span className="text-[9px] text-white/30 text-center">{label}</span>
-                  </div>
-                ))}
-              </div>
+              <DailyCheckInButton 
+                userId={userId} 
+                checkInStatus={checkInStatus} 
+                onClaim={onCheckInClaim}
+              />
             </div>
+
+            {/* Wallet */}
+            {short && (
+              <div className="px-4 py-3 border-b border-white/10">
+                <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
+                <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
+                  <span className="font-mono text-xs text-white/60">{short}</span>
+                  <CopyBtn text={wallet} />
+                </div>
+              </div>
+            )}
 
             {/* Referral codes */}
             <div className="px-4 py-3 border-b border-white/10">
@@ -403,7 +531,6 @@ function ProfileMenu({
 
             {/* Actions */}
             <div className="p-2 space-y-0.5">
-              {/* ── View Full Profile CTA ── */}
               <button
                 onClick={() => { setLocation("/profile"); setOpen(false); }}
                 className="w-full px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/8 transition-colors text-left flex items-center gap-2"
@@ -645,6 +772,11 @@ export default function WaitingPhase({
 
   const mpPercent = currentMP ? (currentMP / MP_MAX) * 100 : 0;
 
+  const handleCheckInClaim = () => {
+    refetchCheckIn();
+    queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+  };
+
   return (
     <div className="relative min-h-screen text-white">
       {/* Background */}
@@ -690,7 +822,8 @@ export default function WaitingPhase({
             checkInStatus={checkInStatus}
             signOut={handleSignOut}
             currentMP={currentMP}
-            inventory={inventory}
+            userId={userId}
+            onCheckInClaim={handleCheckInClaim}
           />
         </nav>
 
@@ -752,7 +885,7 @@ export default function WaitingPhase({
                 Guild Wars
               </motion.button>
 
-              {/* Chest — bigger, better timer */}
+              {/* BIGGER, MORE BEAUTIFUL CHEST */}
               <InlineChest userId={userId} profile={fullProfile} />
             </div>
 
@@ -836,11 +969,11 @@ export default function WaitingPhase({
 
         <div className="h-20" />
 
-        {/* ── Stronghold replaces the old floating chest button ── */}
+        {/* Stronghold */}
         <Stronghold userId={userId} profile={fullProfile} />
       </div>
 
-      {/* Daily Check-In modal */}
+      {/* Daily Check-In modal (kept for backward compat, but menu handles it now) */}
       {checkInOpen && (
         <DailyCheckIn
           userId={userId}
