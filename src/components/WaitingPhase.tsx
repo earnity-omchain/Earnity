@@ -23,6 +23,8 @@ import {
 import { DailyCheckIn } from "@/components/daily-checkin";
 import Stronghold from "@/components/Stronghold";
 
+const LOGO_URL = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets/Logo/logo.jpg";
+
 const ELEMENT_ICONS: Record<string, React.ReactNode> = {
   fire: <Flame className="w-4 h-4" />,
   water: <Droplets className="w-4 h-4" />,
@@ -78,22 +80,22 @@ function useCountdown(target: Date) {
   return t;
 }
 
-/* ── Daily Check-In Button (replaces inventory in menu) ── */
-function DailyCheckInButton({ 
-  userId, 
-  checkInStatus, 
-  onClaim 
-}: { 
-  userId: string; 
-  checkInStatus: any; 
+/* ── Daily Check-In Button (inside Profile Menu) ── */
+function DailyCheckInButton({
+  userId,
+  checkInStatus,
+  onClaim,
+}: {
+  userId: string;
+  checkInStatus: any;
   onClaim: () => void;
 }) {
   const queryClient = useQueryClient();
   const [claimed, setClaimed] = useState(false);
-  
+
   const canCheckIn = checkInStatus?.can_check_in ?? false;
   const streak = checkInStatus?.current_streak ?? 0;
-  
+
   const claimMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase
@@ -130,8 +132,8 @@ function DailyCheckInButton({
       onClick={() => claimMutation.mutate()}
       disabled={!canCheckIn || claimMutation.isPending || claimed}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-        claimed 
-          ? "bg-green-500/10 border-green-500/30 text-green-400" 
+        claimed
+          ? "bg-green-500/10 border-green-500/30 text-green-400"
           : "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/40 text-yellow-400 hover:from-yellow-500/30 hover:to-orange-500/30"
       }`}
     >
@@ -160,7 +162,7 @@ function DailyCheckInButton({
         </>
       )}
       {!claimed && !claimMutation.isPending && canCheckIn && (
-        <motion.div 
+        <motion.div
           className="ml-auto w-2 h-2 rounded-full bg-yellow-400"
           animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
           transition={{ duration: 1.5, repeat: Infinity }}
@@ -170,13 +172,13 @@ function DailyCheckInButton({
   );
 }
 
-/* ── Inline Chest — BIGGER, MORE BEAUTIFUL, TIMER ALWAYS VISIBLE ── */
+/* ── Inline Chest — BIGGER, SERVER-TRUTH, ALWAYS VISIBLE TIMER ── */
 function InlineChest({ userId, profile }: { userId: string; profile: any }) {
   const queryClient = useQueryClient();
   const [reward, setReward] = useState<any>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [showReward, setShowReward] = useState(false);
-  
+
   // CRITICAL: Always derive state from profile.last_chest_opened (server truth)
   const lastOpened = profile?.last_chest_opened;
   const canOpen = canOpenChest(lastOpened);
@@ -191,7 +193,6 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
       setReward(result.reward);
       setIsOpening(false);
       setShowReward(true);
-      // Invalidate the EXACT query keys that landing.tsx uses
       queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
@@ -248,7 +249,7 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* BIGGER, MORE BEAUTIFUL CHEST */}
+      {/* BIGGER CHEST */}
       <motion.div
         whileHover={canOpen && !isOpening ? { scale: 1.08, y: -4 } : {}}
         whileTap={canOpen && !isOpening ? { scale: 0.95 } : {}}
@@ -263,12 +264,12 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
         {canOpen && !isOpening && (
           <motion.div
             className="absolute inset-0 rounded-3xl"
-            animate={{ 
+            animate={{
               boxShadow: [
-                "0 0 0px rgba(234,179,8,0)", 
-                "0 0 30px rgba(234,179,8,0.2)", 
+                "0 0 0px rgba(234,179,8,0)",
+                "0 0 30px rgba(234,179,8,0.2)",
                 "0 0 0px rgba(234,179,8,0)"
-              ] 
+              ]
             }}
             transition={{ duration: 2, repeat: Infinity }}
           />
@@ -333,7 +334,7 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
               >
                 {getRewardIcon()}
               </motion.div>
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
@@ -375,7 +376,9 @@ function InlineChest({ userId, profile }: { userId: string; profile: any }) {
   );
 }
 
-/* ── Profile Menu — INVENTORY REMOVED, DAILY CHECK-IN ADDED ── */
+/* ── Profile Menu — DAILY CHECK-IN REPLACES INVENTORY ──
+   Shows: Avatar, Username, Elemental, MP, Points, Coins, Daily Check-in, Wallet, Referrals, Actions
+*/
 function ProfileMenu({
   full, profile, referralCodes, checkInStatus, signOut, currentMP, userId, onCheckInClaim,
 }: {
@@ -394,6 +397,7 @@ function ProfileMenu({
 
   return (
     <div className="relative">
+      {/* TRIGGER: Profile icon + elemental border always visible */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors"
@@ -411,6 +415,12 @@ function ProfileMenu({
           </div>
         )}
         <span className="text-sm text-white/80 font-medium hidden sm:block">{username}</span>
+        {el && (
+          <div className={`hidden sm:flex items-center gap-1 text-[10px] ${el.text} bg-white/5 px-1.5 py-0.5 rounded-md border border-white/10`}>
+            {ELEMENT_ICONS[full.element]}
+            <span className="capitalize">{el.label}</span>
+          </div>
+        )}
         <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -422,7 +432,7 @@ function ProfileMenu({
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[100] overflow-hidden"
           >
-            {/* Avatar + name */}
+            {/* HEADER: Avatar + Name + Elemental (big and visible) */}
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
               {full?.discord_avatar ? (
                 <img
@@ -438,11 +448,13 @@ function ProfileMenu({
               )}
               <div className="min-w-0">
                 <div className="font-semibold text-white truncate">{username}</div>
-                {el && (
+                {el ? (
                   <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}>
                     <img src={el.img} className="w-3.5 h-3.5 object-contain" alt="" />
-                    {el.label} element
+                    <span className="font-medium">{el.label} element bound</span>
                   </div>
+                ) : (
+                  <div className="text-[10px] text-white/30 mt-0.5">No element selected</div>
                 )}
               </div>
             </div>
@@ -482,9 +494,9 @@ function ProfileMenu({
 
             {/* DAILY CHECK-IN (replaces inventory) */}
             <div className="px-4 py-3 border-b border-white/10">
-              <DailyCheckInButton 
-                userId={userId} 
-                checkInStatus={checkInStatus} 
+              <DailyCheckInButton
+                userId={userId}
+                checkInStatus={checkInStatus}
                 onClaim={onCheckInClaim}
               />
             </div>
@@ -789,11 +801,11 @@ export default function WaitingPhase({
       </div>
 
       <div className="relative z-10">
-        {/* Nav */}
+        {/* Nav — Logo replaced */}
         <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/40 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
-              <img src={GAME_ASSETS.seal2} className="w-full h-full object-cover" />
+              <img src={LOGO_URL} className="w-full h-full object-cover" alt="Logo" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">EARNITY</span>
           </div>
@@ -973,7 +985,7 @@ export default function WaitingPhase({
         <Stronghold userId={userId} profile={fullProfile} />
       </div>
 
-      {/* Daily Check-In modal (kept for backward compat, but menu handles it now) */}
+      {/* Daily Check-In modal (kept for backward compat) */}
       {checkInOpen && (
         <DailyCheckIn
           userId={userId}
