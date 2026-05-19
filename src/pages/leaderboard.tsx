@@ -119,6 +119,36 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
+  /* ── My real rank & stats (for the sticky card) ── */
+  const { data: myStats } = useQuery({
+    queryKey: ["my-leaderboard-stats", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return null;
+
+      // Count users with a strictly higher contribution_score
+      const { count: higherCount, error: rankErr } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .gt("contribution_score", profile.contribution_score ?? 0);
+      if (rankErr) throw rankErr;
+
+      // My referral count
+      const { count: refCount, error: refErr } = await supabase
+        .from("invite_codes")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by", profile.id)
+        .not("used_by", "is", null);
+      if (refErr) throw refErr;
+
+      return {
+        rank: (higherCount ?? 0) + 1,
+        referral_count: refCount ?? 0,
+      };
+    },
+    enabled: !!profile?.id,
+    refetchInterval: 15000,
+  });
+
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
       <div className="absolute inset-0 bg-cover bg-center opacity-40"
@@ -249,6 +279,87 @@ export default function Leaderboard() {
             <h2 className="text-sm font-semibold uppercase tracking-widest text-white/60">User Ranking</h2>
             <span className="ml-auto text-xs text-white/30">Top 2000 survive</span>
           </div>
+
+          {/* 🆕 Sticky "Your Rank" card — always visible, even if you're #4,832 */}
+          {profile && (
+            <div className="sticky top-0 z-30 mb-4 rounded-xl border border-blue-500/30 bg-blue-950/40 backdrop-blur-xl p-4 shadow-lg shadow-blue-900/20">
+              <div className="flex items-center gap-3">
+                {/* Rank */}
+                <div className="w-8 text-center shrink-0">
+                  {myStats && myStats.rank <= 3 ? (
+                    <span className="text-lg">
+                      {myStats.rank === 1 ? "🥇" : myStats.rank === 2 ? "🥈" : "🥉"}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-mono text-white/60 tabular-nums">
+                      {myStats ? String(myStats.rank).padStart(2, "0") : "—"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Avatar */}
+                <div className="w-9 shrink-0">
+                  {profile.discord_avatar ? (
+                    <img
+                      src={profile.discord_avatar}
+                      alt=""
+                      className="w-8 h-8 rounded-lg object-cover border border-white/20"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-300">
+                      {profile.username?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Name + element */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold truncate text-white">
+                      {profile.username}
+                    </span>
+                    <span className="text-[10px] text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded-full shrink-0 bg-blue-500/10">
+                      You
+                    </span>
+                  </div>
+                  {profile.element && ELEMENT_META[profile.element] && (
+                    <div
+                      className="inline-flex items-center gap-1 mt-0.5 text-[10px]"
+                      style={{ color: ELEMENT_COLORS[profile.element] }}
+                    >
+                      <img
+                        src={ELEMENT_META[profile.element].img}
+                        className="w-3 h-3 object-contain"
+                        alt=""
+                      />
+                      <span className="capitalize">{profile.element}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Referrals */}
+                <div className="w-16 text-center shrink-0 hidden sm:block">
+                  <span className="text-sm font-mono text-white/80">
+                    {myStats && myStats.referral_count > 0 ? myStats.referral_count : "—"}
+                  </span>
+                </div>
+
+                {/* Points + safe badge */}
+                <div className="w-24 text-right shrink-0">
+                  <div className="flex items-center justify-end gap-2">
+                    {myStats && myStats.rank <= 2000 && (
+                      <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400">
+                        ✓ Safe
+                      </span>
+                    )}
+                    <span className="font-mono text-sm tabular-nums text-white font-bold">
+                      {(profile.contribution_score ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-white/10 bg-white/3 backdrop-blur-md overflow-hidden">
             {/* Headers */}
