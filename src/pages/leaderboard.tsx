@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, queryKeys, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { motion } from "framer-motion";
-import {
-  ArrowLeft, Star, Trophy, Crown,
-} from "lucide-react";
+import { ArrowLeft, Star, Trophy, Crown } from "lucide-react";
 import { ELEMENT_META, getGuildImage, GAME_ASSETS } from "@/lib/assets";
 
 const ASSETS = {
@@ -20,14 +18,42 @@ const ELEMENT_COLORS: Record<string, string> = {
 
 export default function Leaderboard() {
   const [, setLocation] = useLocation();
-  const { session, profile } = useAuth();
+  const { profile } = useAuth();
 
-  /* ── Guild ranking — from RPC, sorted by member coin_balance sum ── */
+  /* ── Real member count (no limit) ── */
+  const { data: memberCount } = useQuery({
+    queryKey: ["member-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
+  });
+
+  /* ── Overview stats ── */
+  const { data: stats } = useQuery({
+    queryKey: ["leaderboard-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("contribution_score, coin_balance");
+      if (error) throw error;
+      const rows = data ?? [];
+      return {
+        total_points: rows.reduce((s: number, p: any) => s + (p.contribution_score ?? 0), 0),
+        total_coins:  rows.reduce((s: number, p: any) => s + (p.coin_balance ?? 0), 0),
+      };
+    },
+    refetchInterval: 30000,
+  });
+
+  /* ── Guild ranking — sorted by member coin_balance sum ── */
   const { data: guildsRaw } = useQuery({
     queryKey: ["leaderboard-guilds"],
     queryFn: async () => {
-      // RPC returns ranking_score=0, so we calculate rank by member_count
-      // and display coin totals pulled from profiles
       const { data, error } = await supabase.rpc("get_guilds_with_ranking");
       if (error) throw error;
       return data ?? [];
@@ -35,7 +61,6 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
-  /* For each guild, sum member coin_balance to get true ranking score */
   const { data: guildCoinTotals } = useQuery({
     queryKey: ["guild-coin-totals"],
     queryFn: async () => {
@@ -53,46 +78,45 @@ export default function Leaderboard() {
     refetchInterval: 15000,
   });
 
-  /* Merge and sort by total coins */
   const guilds = (guildsRaw ?? [])
-    .map((g: any) => ({
-      ...g,
-      total_coins: guildCoinTotals?.[g.id] ?? 0,
-    }))
+    .map((g: any) => ({ ...g, total_coins: guildCoinTotals?.[g.id] ?? 0 }))
     .sort((a: any, b: any) => b.total_coins - a.total_coins)
     .map((g: any, i: number) => ({ ...g, _rank: i + 1 }));
 
-  /* ── User ranking — contribution_score ── */
+  /* ── User ranking — contribution_score + referral count ── */
   const { data: topUsers, isLoading: usersLoading } = useQuery({
     queryKey: ["leaderboard-users"],
     queryFn: async () => {
+      // Get top 100 by contribution_score
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, discord_avatar, element, contribution_score, coin_balance, guild_id")
+        .select("id, username, discord_avatar, element, contribution_score, guild_id")
         .order("contribution_score", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data ?? [];
+      const users = data ?? [];
+
+      // Get referral counts for these users
+      const ids = users.map((u: any) => u.id);
+      if (ids.length === 0) return [];
+
+      const { data: refData } = await supabase
+        .from("invite_codes")
+        .select("created_by")
+        .in("created_by", ids)
+        .not("used_by", "is", null);
+
+      const refCounts: Record<string, number> = {};
+      (refData ?? []).forEach((r: any) => {
+        refCounts[r.created_by] = (refCounts[r.created_by] ?? 0) + 1;
+      });
+
+      return users.map((u: any) => ({
+        ...u,
+        referral_count: refCounts[u.id] ?? 0,
+      }));
     },
     refetchInterval: 15000,
-  });
-
-  /* ── Overview stats — from profiles directly ── */
-  const { data: stats } = useQuery({
-    queryKey: ["leaderboard-stats"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("contribution_score, coin_balance");
-      if (error) throw error;
-      const rows = data ?? [];
-      return {
-        total_points: rows.reduce((s: number, p: any) => s + (p.contribution_score ?? 0), 0),
-        total_coins:  rows.reduce((s: number, p: any) => s + (p.coin_balance ?? 0), 0),
-        total_users:  rows.length,
-      };
-    },
-    refetchInterval: 30000,
   });
 
   return (
@@ -126,7 +150,7 @@ export default function Leaderboard() {
             {[
               { label: "Total points", value: (stats?.total_points ?? 0).toLocaleString() },
               { label: "Total coins",  value: (stats?.total_coins ?? 0).toLocaleString() },
-              { label: "Members",      value: (stats?.total_users ?? 0).toLocaleString() },
+              { label: "Members",      value: (memberCount ?? 0).toLocaleString() },
             ].map(({ label, value }) => (
               <div key={label}>
                 <span className="text-xl font-bold tabular-nums">{value}</span>
@@ -161,7 +185,7 @@ export default function Leaderboard() {
                   <div key={guild.id}
                     className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${isMyGuild ? "bg-white/8" : "hover:bg-white/4"}`}>
 
-                    {/* Rank number */}
+                    {/* Rank */}
                     <div className="w-8 text-center shrink-0">
                       {guild._rank <= 3 ? (
                         <span className="text-lg">{guild._rank === 1 ? "🥇" : guild._rank === 2 ? "🥈" : "🥉"}</span>
@@ -174,16 +198,11 @@ export default function Leaderboard() {
                     <div className="relative shrink-0">
                       <img src={guildImg} alt={guild.name}
                         className="w-11 h-11 rounded-xl object-cover border border-white/10"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = elMeta?.img ?? GAME_ASSETS.seal2;
-                        }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = elMeta?.img ?? GAME_ASSETS.seal2; }}
                       />
-                      {/* Element dot */}
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-black flex items-center justify-center"
                         style={{ background: elColor }}>
-                        {elMeta && (
-                          <img src={elMeta.img} className="w-2.5 h-2.5 object-contain" alt="" />
-                        )}
+                        {elMeta && <img src={elMeta.img} className="w-2.5 h-2.5 object-contain" alt="" />}
                       </div>
                     </div>
 
@@ -200,15 +219,13 @@ export default function Leaderboard() {
                       <div className="flex items-center gap-2 mt-0.5 text-[11px] text-white/35">
                         <span>{guild.member_count} members</span>
                         {guild.element && (
-                          <>
-                            <span>·</span>
-                            <span style={{ color: elColor }}>{elMeta?.label ?? guild.element}</span>
-                          </>
+                          <><span>·</span>
+                          <span style={{ color: elColor }}>{elMeta?.label ?? guild.element}</span></>
                         )}
                       </div>
                     </div>
 
-                    {/* Score */}
+                    {/* Coins */}
                     <div className="text-right shrink-0">
                       <div className="font-mono text-sm tabular-nums text-white">
                         {guild.total_coins.toLocaleString()}
@@ -239,7 +256,7 @@ export default function Leaderboard() {
               <div className="w-8 text-center">#</div>
               <div className="w-9" />
               <div className="flex-1">User</div>
-              <div className="w-24 text-right hidden sm:block">Coins</div>
+              <div className="w-16 text-center hidden sm:block">Refs</div>
               <div className="w-24 text-right">Points</div>
             </div>
 
@@ -295,21 +312,19 @@ export default function Leaderboard() {
                         )}
                       </div>
                       {elMeta && (
-                        <div className="inline-flex items-center gap-1 mt-0.5 text-[10px]" style={{ color: elColor ?? undefined }}>
+                        <div className="inline-flex items-center gap-1 mt-0.5 text-[10px]"
+                          style={{ color: elColor ?? undefined }}>
                           <img src={elMeta.img} className="w-3 h-3 object-contain" alt="" />
                           <span className="capitalize">{user.element}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Coins */}
-                    <div className="w-24 text-right shrink-0 hidden sm:block">
-                      <div className="flex items-center justify-end gap-1">
-                        <img src={GAME_ASSETS.coin} className="w-3 h-3 object-contain" alt="" />
-                        <span className="text-sm font-mono text-yellow-400 tabular-nums">
-                          {(user.coin_balance ?? 0).toLocaleString()}
-                        </span>
-                      </div>
+                    {/* Referrals */}
+                    <div className="w-16 text-center shrink-0 hidden sm:block">
+                      <span className="text-sm font-mono text-white/60">
+                        {user.referral_count > 0 ? user.referral_count : "—"}
+                      </span>
                     </div>
 
                     {/* Points + safe badge */}
