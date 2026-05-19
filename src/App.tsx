@@ -18,8 +18,7 @@ import AuthCallback from "@/pages/auth-callback";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import Battlefield from "@/pages/battlefield";
-import ChestOpener from "@/components/chest-opener";
-import ElementalCraft from "@/components/elemental-craft";
+import Stronghold from "@/components/Stronghold";
 import { useEffect } from "react";
 
 const queryClient = new QueryClient({
@@ -73,32 +72,33 @@ function AppRouter() {
     document.documentElement.classList.add("dark");
   }, []);
 
-  const base = useBasePath();
-
   return (
     <Switch>
+      {/* Auth */}
       <Route path="/" component={Landing} />
-      <Route path="/fantasy" component={FantasyBuildings} />
       <Route path="/connect" component={Connect} />
       <Route path="/auth/callback" component={AuthCallback} />
 
+      {/* Public */}
       <Route path="/leaderboard" component={Leaderboard} />
-      <Route path="/forge" component={Forge} />
-      <Route path="/battlefield" component={Battlefield} />
-
+      <Route path="/socials" component={Socials} />
       <Route path="/guilds">
         <PublicLayout><Guilds /></PublicLayout>
       </Route>
-
       <Route path="/guild/:id">
         {(params) => (
           <PublicLayout><GuildDetail id={params.id} /></PublicLayout>
         )}
       </Route>
 
-      <Route path="/merchant" component={Merchant} />
-      <Route path="/socials" component={Socials} />
+      {/* Protected */}
+      <Route path="/forge" component={() => <ProtectedRoute component={Forge} />} />
+      <Route path="/battlefield" component={() => <ProtectedRoute component={Battlefield} />} />
+      <Route path="/merchant" component={() => <ProtectedRoute component={Merchant} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+
+      {/* Dev */}
+      <Route path="/fantasy" component={FantasyBuildings} />
 
       <Route component={NotFound} />
     </Switch>
@@ -113,8 +113,7 @@ function App() {
           <WouterRouter>
             <AppRouter />
           </WouterRouter>
-          <ChestOpener />
-          <ElementalCraft />
+          <Stronghold />
           <Toaster />
         </AuthProvider>
       </TooltipProvider>
