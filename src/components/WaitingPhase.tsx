@@ -122,7 +122,7 @@ function InlineDailyCheckIn({ userId, onClaimed }: { userId: string; onClaimed: 
       setJustClaimed(true);
       onClaimed();
       queryClient.invalidateQueries({ queryKey: ["checkin-status", userId] });
-      queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
       setTimeout(() => setJustClaimed(false), 3000);
     },
@@ -255,7 +255,7 @@ function InlineChest({ userId, lastChestOpened }: { userId: string; lastChestOpe
       setReward(result.reward);
       setIsOpening(false);
       setShowReward(true);
-      queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
       setTimeout(() => setShowReward(false), 4000);
     },
@@ -574,36 +574,28 @@ function AttackLogMini() {
         <Scroll className="w-3.5 h-3.5" /> Recent War Activity
       </h3>
       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-        {(!attackLog || attackLog.length === 0) && (
+        {attackLog?.length === 0 && (
           <div className="text-center py-4 text-zinc-600 text-xs">The battlefield is quiet… for now.</div>
         )}
         {attackLog?.map((attack) => {
           const meta = ITEM_META[attack.item_type];
           const isNuke = attack.item_type === GAME_ITEMS.NUKE;
-          const attackId = attack.id ?? attack.attack_id ?? `${attack.attacker_name}-${attack.created_at}`;
-          
           return (
-            <div
-              key={attackId}
+            <div key={attack.id}
               className={`flex items-center gap-2 p-2 rounded-lg border ${
                 isNuke ? "border-red-900/20 bg-red-950/5" : "border-zinc-800/50 bg-zinc-900/20"
-              }`}
-            >
+              }`}>
               <div className={isNuke ? "text-red-400" : "text-zinc-500"}>
-                {ITEM_ICONS[attack.item_type] ?? <Swords className="w-3 h-3" />}
+                {ITEM_ICONS[attack.item_type]}
               </div>
               <div className="flex-1 min-w-0 text-xs">
                 <span className="text-zinc-300 font-medium truncate">{attack.attacker_name}</span>
                 <span className="text-zinc-600"> used </span>
-                <span className={isNuke ? "text-red-400 font-bold" : "text-zinc-400 font-bold"}>
-                  {meta?.label ?? attack.item_type}
-                </span>
+                <span className={isNuke ? "text-red-400 font-bold" : "text-zinc-400 font-bold"}>{meta?.label}</span>
                 <span className="text-zinc-600"> on </span>
                 <span className="text-zinc-300">{attack.target_name}</span>
               </div>
-              <div className="text-[10px] text-zinc-600 font-mono">
-                {meta?.mpCost ?? 0}MP
-              </div>
+              <div className="text-[10px] text-zinc-600 font-mono">{meta?.mpCost || 0}MP</div>
             </div>
           );
         })}
