@@ -326,15 +326,17 @@ export default function Landing() {
   const { data: fullProfile } = useQuery({
   queryKey: ["landing-full-profile", session?.user?.id],
   queryFn: async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("id, username, discord_avatar, wallet_address, element, contribution_score, coin_balance, coins, guild_id, mp, last_chest_opened")
       .eq("id", session!.user.id)
       .single();
+    if (error) throw error;
     return data;
   },
   enabled: !!session?.user?.id,
-  refetchInterval: 60_000,
+  staleTime: 0,            // ← always refetch
+  refetchInterval: 15_000, // ← every 15s not 60s
 });
 
   // Referral codes — only fetch in waiting phase
