@@ -419,7 +419,8 @@ function ProfileMenu({
   const short    = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
   const username = full?.username ?? "?";
   const score    = full?.contribution_score ?? 0;
-  const coins    = full?.coin_balance ?? 0;
+  // SAFE: try both field names since schema may vary
+  const coins    = full?.coin_balance ?? full?.coins ?? 0;
   const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
 
   return (
@@ -573,28 +574,36 @@ function AttackLogMini() {
         <Scroll className="w-3.5 h-3.5" /> Recent War Activity
       </h3>
       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-        {attackLog?.length === 0 && (
+        {(!attackLog || attackLog.length === 0) && (
           <div className="text-center py-4 text-zinc-600 text-xs">The battlefield is quiet… for now.</div>
         )}
         {attackLog?.map((attack) => {
           const meta = ITEM_META[attack.item_type];
           const isNuke = attack.item_type === GAME_ITEMS.NUKE;
+          const attackId = attack.id ?? attack.attack_id ?? `${attack.attacker_name}-${attack.created_at}`;
+          
           return (
-            <div key={attack.id}
+            <div
+              key={attackId}
               className={`flex items-center gap-2 p-2 rounded-lg border ${
                 isNuke ? "border-red-900/20 bg-red-950/5" : "border-zinc-800/50 bg-zinc-900/20"
-              }`}>
+              }`}
+            >
               <div className={isNuke ? "text-red-400" : "text-zinc-500"}>
-                {ITEM_ICONS[attack.item_type] || <Swords className="w-3 h-3" />}
+                {ITEM_ICONS[attack.item_type] ?? <Swords className="w-3 h-3" />}
               </div>
               <div className="flex-1 min-w-0 text-xs">
                 <span className="text-zinc-300 font-medium truncate">{attack.attacker_name}</span>
                 <span className="text-zinc-600"> used </span>
-                <span className={isNuke ? "text-red-400 font-bold" : "text-zinc-400 font-bold"}>{meta?.label}</span>
+                <span className={isNuke ? "text-red-400 font-bold" : "text-zinc-400 font-bold"}>
+                  {meta?.label ?? attack.item_type}
+                </span>
                 <span className="text-zinc-600"> on </span>
                 <span className="text-zinc-300">{attack.target_name}</span>
               </div>
-              <div className="text-[10px] text-zinc-600 font-mono">{meta?.mpCost || 0}MP</div>
+              <div className="text-[10px] text-zinc-600 font-mono">
+                {meta?.mpCost ?? 0}MP
+              </div>
             </div>
           );
         })}
@@ -695,6 +704,8 @@ export default function WaitingPhase({
   profile,
   referralCodes,
   checkInStatus,
+  checkInOpen,
+  setCheckInOpen,
   handleSignOut,
   refetchCheckIn,
 }: {
@@ -702,6 +713,8 @@ export default function WaitingPhase({
   profile: any;
   referralCodes: any[];
   checkInStatus: any;
+  checkInOpen: boolean;
+  setCheckInOpen: (v: boolean) => void;
   handleSignOut: () => void;
   refetchCheckIn: () => void;
 }) {
@@ -709,14 +722,15 @@ export default function WaitingPhase({
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
-  // ── Self-contained fullProfile query — no longer a prop ──────────────────
+  // CRITICAL: Self-contained fullProfile query — do NOT rely on parent prop
+  // This ensures data is always fresh and correctly fetched
   const { data: fullProfile } = useQuery({
-    queryKey: ["landing-full-profile", userId],
+    queryKey: ["waiting-full-profile", userId],
     queryFn: async () => {
       if (!userId) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, discord_avatar, wallet_address, element, contribution_score, coin_balance, guild_id, mp, last_chest_opened")
+        .select("id, username, discord_avatar, wallet_address, element, contribution_score, coin_balance, coins, guild_id, mp, last_chest_opened, guild_hp")
         .eq("id", userId)
         .single();
       if (error) throw error;
@@ -753,11 +767,11 @@ export default function WaitingPhase({
 
   const handleCheckInClaim = () => {
     refetchCheckIn();
-    queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
+    queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
+    queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
   };
 
   // Defensive: if auth is missing after hooks are declared, render nothing
-  // instead of crashing downstream.
   if (!userId) return null;
 
   return (
@@ -864,7 +878,7 @@ export default function WaitingPhase({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             {[
               { label: "Your MP",         value: `${currentMP ?? "—"}/${MP_MAX}`, icon: Zap,   color: "text-yellow-400", bar: true, pct: mpPercent },
-              { label: "Your Coins",      value: (fullProfile?.coin_balance ?? 0).toLocaleString(), icon: () => <img src={GAME_ASSETS.coin} className="w-4 h-4" />, color: "text-yellow-400" },
+              { label: "Your Coins",      value: (fullProfile?.coin_balance ?? fullProfile?.coins ?? 0).toLocaleString(), icon: () => <img src={GAME_ASSETS.coin} className="w-4 h-4" />, color: "text-yellow-400" },
               { label: "Guild HP",        value: `${fullProfile?.guild_hp ?? "—"}%`, icon: Heart,  color: "text-red-400"    },
               { label: "Check-in Streak", value: `${checkInStatus?.current_streak ?? 0} days`,     icon: Flame,  color: "text-orange-400" },
             ].map(({ label, value, icon: Icon, color, bar, pct }: any) => (
