@@ -733,19 +733,22 @@ export default function Landing() {
 
           {/* ── WAITING ──────────────────────────────────────────────────────── */}
           {phase === "waiting" && session && (
-            <WaitingPhase
-              session={session}
-              fullProfile={fullProfile}
-              profile={profile}
-              referralCodes={referralCodes ?? []}
-              checkInStatus={checkInStatus}
-              checkInOpen={checkInOpen}
-              setCheckInOpen={setCheckInOpen}
-              handleSignOut={handleSignOut}
-              refetchCheckIn={refetchCheckIn}
-              queryClient={queryClient}
-            />
-          )}
+          <>
+           {console.log("fullProfile:", fullProfile, "session:", session?.user?.id)}
+           <WaitingPhase
+             session={session}
+             fullProfile={fullProfile}
+             profile={profile}
+             referralCodes={referralCodes ?? []}
+             checkInStatus={checkInStatus}
+             checkInOpen={checkInOpen}
+             setCheckInOpen={setCheckInOpen}
+             handleSignOut={handleSignOut}
+             refetchCheckIn={refetchCheckIn}
+             queryClient={queryClient}
+           />
+         </>
+        )}
 
         </AnimatePresence>
       </div>
