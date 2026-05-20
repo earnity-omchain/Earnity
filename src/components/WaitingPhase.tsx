@@ -10,7 +10,7 @@ import {
   Star, Gift, CheckCircle2, Loader2,
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import type { supabase } from "@/lib/supabase";
 import { ELEMENT_META, getGuildImage, GAME_ASSETS } from "@/lib/assets";
 import { ITEM_META, GAME_ITEMS, MP_MAX, canOpenChest, getChestCooldownRemaining } from "@/lib/game-config";
 import {
