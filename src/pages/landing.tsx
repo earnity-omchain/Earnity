@@ -14,7 +14,7 @@ import {
 import { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
 
-// ── Asset base ────────────────────────────────────────────────────────────────
+// ── Asset base (Supabase CDN) ─────────────────────────────────────────────────
 const BASE = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets/Game%20assets";
 const ASSETS = {
   background:  `${BASE}/background-1.png`,
@@ -40,6 +40,26 @@ const ELEMENTS = [
   { id: "lightning", name: "Lightning", img: ASSETS.lightning, text: "text-yellow-400", border: "border-yellow-400/40", bg: "bg-yellow-400/10", ring: "ring-yellow-400/30",  glow: "rgba(250,204,21,0.4)"  },
   { id: "wind",      name: "Wind",      img: ASSETS.wind,      text: "text-sky-300",    border: "border-sky-300/40",    bg: "bg-sky-300/10",    ring: "ring-sky-300/30",     glow: "rgba(125,211,252,0.4)" },
 ];
+
+const DEADLINE = new Date("2026-05-13T23:59:59Z");
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+function useCountdown(target: Date) {
+  const calc = () => {
+    const diff = target.getTime() - Date.now();
+    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+    return {
+      days:    Math.floor(diff / 86400000),
+      hours:   Math.floor((diff % 86400000) / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+      expired: false,
+    };
+  };
+  const [t, setT] = useState(calc);
+  useEffect(() => { const id = setInterval(() => setT(calc()), 1000); return () => clearInterval(id); }, []);
+  return t;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function CopyBtn({ text }: { text: string }) {
@@ -98,17 +118,19 @@ function OrbitingElements({ selectedElement, onSelect }: { selectedElement: stri
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
-  const [phase, setPhase] = useState<<Phase>("loading");
+  const [phase, setPhase] = useState<Phase>("loading");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [guildName, setGuildName] = useState("");
   const [xUsername, setXUsername] = useState("");
+  const [checkInOpen, setCheckInOpen] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const [session, setSession] = useState<<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
+  const cd = useCountdown(DEADLINE);
 
   // Referral codes — only fetch in waiting phase
   const { data: referralCodes } = useQuery({
@@ -128,7 +150,7 @@ export default function Landing() {
     staleTime: 60_000,
   });
 
-  // Daily check-in status — only in waiting phase, passed to WaitingPhase for streak display
+  // Daily check-in status
   const { data: checkInStatus, refetch: refetchCheckIn } = useQuery({
     queryKey: ["checkin-status", session?.user?.id],
     queryFn: async () => {
@@ -142,6 +164,13 @@ export default function Landing() {
     enabled: !!session?.user?.id && phase === "waiting",
     refetchInterval: 60_000,
   });
+
+  // Auto-popup: show check-in modal 1.2s after landing if reward is waiting
+  useEffect(() => {
+    if (phase !== "waiting" || !checkInStatus?.can_check_in || checkInOpen) return;
+    const t = setTimeout(() => setCheckInOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, [phase, checkInStatus?.can_check_in]);
 
   const handleSignOut = async () => {
     await auth.signOut();
@@ -189,7 +218,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (!sessionReady) return;
-    if (!session) { setPhase("gate"); return; }
+    if (!session?.user) { setPhase("gate"); return; }
     if (profileLoading) { setPhase("loading"); return; }
     if (!profile?.invite_code_used) { setPhase("code"); return; }
     if ((profile as any)?.element) { setPhase("waiting"); return; }
@@ -250,7 +279,7 @@ export default function Landing() {
 
   const selectedEl = ELEMENTS.find((e) => e.id === selectedElement);
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Loading screen ──────────────────────────────────────────────────────────
   if (phase === "loading") {
     return (
       <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black">
@@ -283,7 +312,7 @@ export default function Landing() {
                 <h1 className="text-4xl font-bold tracking-tight text-white mb-2">Earnity</h1>
                 <p className="text-sm text-white/50 mb-10">Private beta — invite only</p>
                 <Button onClick={handleDiscordLogin}
-                  className="w-full h-12 gap-2 text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 text-white backdrop-blur-md">
+                  className="w-full h-13 gap-2 text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 text-white backdrop-blur-md">
                   <LogIn className="w-4 h-4" />Sign in with Discord
                 </Button>
                 <p className="mt-5 text-xs text-white/30">Discord required.</p>
@@ -502,13 +531,15 @@ export default function Landing() {
             </motion.div>
           )}
 
-          {/* ── WAITING — WaitingPhase owns its own fullProfile query ── */}
+          {/* ── WAITING ── */}
           {phase === "waiting" && session?.user && (
             <WaitingPhase
               session={session}
               profile={profile}
               referralCodes={referralCodes ?? []}
               checkInStatus={checkInStatus}
+              checkInOpen={checkInOpen}
+              setCheckInOpen={setCheckInOpen}
               handleSignOut={handleSignOut}
               refetchCheckIn={refetchCheckIn}
             />
