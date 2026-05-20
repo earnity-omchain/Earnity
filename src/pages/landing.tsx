@@ -116,9 +116,189 @@ function OrbitingElements({ selectedElement, onSelect }: { selectedElement: stri
   );
 }
 
+// ── Inline Profile Dropdown (unused in waiting phase now, kept for reference) ──
+function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut }: {
+  full: any;
+  profile: any;
+  referralCodes: any[];
+  checkInStatus: any;
+  signOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const el         = full?.element ? ELEMENTS.find(e => e.id === full.element) : null;
+  const wallet     = full?.wallet_address;
+  const short      = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
+  const username   = full?.username ?? profile?.username ?? "?";
+  const score      = full?.contribution_score ?? 0;
+  const coins      = full?.coin_balance ?? 0;
+  const canCheckIn = checkInStatus?.can_check_in ?? false;
+  const streak     = checkInStatus?.current_streak ?? 0;
+  const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
+  const usedCodes   = (referralCodes ?? []).filter((c: any) => !!c.used_by);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors"
+      >
+        {canCheckIn && (
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-yellow-400 border-2 border-black animate-pulse z-10" />
+        )}
+        {full?.discord_avatar ? (
+          <img src={full.discord_avatar} className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} object-cover`} />
+        ) : (
+          <div className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
+            {username.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="text-sm text-white/80 font-medium hidden sm:block">{username}</span>
+        <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[100] overflow-hidden"
+          >
+            <div className="p-4 border-b border-white/10 flex items-center gap-3">
+              {full?.discord_avatar ? (
+                <img src={full.discord_avatar} className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} object-cover`} />
+              ) : (
+                <div className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="font-semibold text-white truncate">{username}</div>
+                {el && (
+                  <div className={`flex items-center gap-1.5 text-xs ${el.text} mt-0.5`}>
+                    <img src={el.img} className="w-3.5 h-3.5 object-contain" alt="" />{el.name} element
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 divide-x divide-white/8 border-b border-white/10">
+              <div className="py-3 text-center">
+                <div className="text-base font-bold text-white tabular-nums">{score.toLocaleString()}</div>
+                <div className="text-[10px] text-white/35 uppercase tracking-wider mt-0.5">Points</div>
+              </div>
+              <div className="py-3 text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <img src={ASSETS.coin} className="w-4 h-4 object-contain" alt="" />
+                  <span className="text-base font-bold text-yellow-400 tabular-nums">{coins.toLocaleString()}</span>
+                </div>
+                <div className="text-[10px] text-white/35 uppercase tracking-wider mt-0.5">Coins</div>
+              </div>
+            </div>
+
+            {streak > 0 && (
+              <div className="px-4 py-3 border-b border-white/10">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/8 border border-orange-500/15">
+                  <span className="text-base">🔥</span>
+                  <div>
+                    <span className="text-sm font-semibold text-orange-300">{streak} day streak</span>
+                    <p className="text-[10px] text-white/30 mt-0.5">{checkInStatus?.can_check_in ? "Check-in available now" : "Come back tomorrow"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {short && (
+              <div className="px-4 py-3 border-b border-white/10">
+                <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
+                <div className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2">
+                  <span className="font-mono text-xs text-white/60">{short}</span>
+                  <CopyBtn text={wallet} />
+                </div>
+              </div>
+            )}
+
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { icon: Shield, label: "Shields",  color: "text-blue-400"   },
+                  { icon: Swords, label: "Rugs",     color: "text-red-400"    },
+                  { icon: Zap,    label: "Drain",    color: "text-orange-400" },
+                  { icon: Star,   label: "Shards",   color: "text-yellow-400" },
+                ].map(({ icon: Icon, label, color }) => (
+                  <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
+                    <Icon className={`w-4 h-4 ${color}`} />
+                    <span className="text-sm font-bold text-white">0</span>
+                    <span className="text-[9px] text-white/30 text-center">{label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/25 text-center mt-2">Mystery boxes unlock in Phase 2</p>
+            </div>
+
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-white/30" />
+                  <span className="text-[10px] uppercase tracking-wider text-white/40">Referral Codes</span>
+                </div>
+                <span className="text-[10px] text-white/25">+50 pts each</span>
+              </div>
+              {activeCodes.length > 0 ? (
+                <div className="space-y-1.5">
+                  {activeCodes.slice(0, 3).map((c: any) => (
+                    <div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+                      <span className="font-mono text-xs tracking-widest text-white/80">{c.code}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-green-400">Active</span>
+                        <CopyBtn text={c.code} />
+                      </div>
+                    </div>
+                  ))}
+                  {activeCodes.length > 3 && (
+                    <p className="text-[10px] text-white/25 text-center">+{activeCodes.length - 3} more codes</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-white/30 text-center py-2 bg-white/5 rounded-xl border border-white/8">
+                  Codes being generated…
+                </p>
+              )}
+              {usedCodes.length > 0 && (
+                <p className="text-[10px] text-white/30 mt-2 text-center">
+                  {usedCodes.length} referral{usedCodes.length !== 1 ? "s" : ""} · {usedCodes.length * 50} pts earned
+                </p>
+              )}
+            </div>
+
+            <div className="p-2">
+              <button
+                onClick={() => { signOut(); setOpen(false); }}
+                className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
+              >
+                Sign Out
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
-  const [phase, setPhase] = useState<Phase>("loading");
+  const [phase, setPhase] = useState<<Phase>("loading");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
@@ -128,7 +308,7 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const cd = useCountdown(DEADLINE);
 
