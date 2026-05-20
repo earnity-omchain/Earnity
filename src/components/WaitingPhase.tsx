@@ -122,7 +122,6 @@ function InlineDailyCheckIn({ userId, onClaimed }: { userId: string; onClaimed: 
       setJustClaimed(true);
       onClaimed();
       queryClient.invalidateQueries({ queryKey: ["checkin-status", userId] });
-      queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
       setTimeout(() => setJustClaimed(false), 3000);
     },
@@ -255,7 +254,7 @@ function InlineChest({ userId, lastChestOpened }: { userId: string; lastChestOpe
       setReward(result.reward);
       setIsOpening(false);
       setShowReward(true);
-      queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
+      queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
       setTimeout(() => setShowReward(false), 4000);
     },
@@ -419,8 +418,7 @@ function ProfileMenu({
   const short    = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
   const username = full?.username ?? "?";
   const score    = full?.contribution_score ?? 0;
-  // SAFE: try both field names since schema may vary
-  const coins    = full?.coin_balance ?? full?.coins ?? 0;
+  const coins    = full?.coin_balance ?? 0;
   const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
 
   return (
@@ -714,24 +712,8 @@ export default function WaitingPhase({
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
-  // CRITICAL: Self-contained fullProfile query — do NOT rely on parent prop
-  // This ensures data is always fresh and correctly fetched
-  const { data: fullProfile } = useQuery({
-    queryKey: ["waiting-full-profile", userId],
-    queryFn: async () => {
-      if (!userId) throw new Error("Not authenticated");
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, discord_avatar, wallet_address, element, contribution_score, coin_balance, coins, guild_id, mp, last_chest_opened, guild_hp")
-        .eq("id", userId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!userId,
-    staleTime: 0,
-    refetchInterval: 15_000,
-  });
+  // ✅ USE THE PASSED-IN PROFILE PROP (same pattern as Battlefield.tsx)
+  const fullProfile = profile;
 
   const myGuildId = fullProfile?.guild_id;
   const el = fullProfile?.element ? ELEMENT_META[fullProfile.element] : null;
@@ -759,7 +741,6 @@ export default function WaitingPhase({
 
   const handleCheckInClaim = () => {
     refetchCheckIn();
-    queryClient.invalidateQueries({ queryKey: ["waiting-full-profile", userId] });
     queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
   };
 
@@ -870,8 +851,8 @@ export default function WaitingPhase({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             {[
               { label: "Your MP",         value: `${currentMP ?? "—"}/${MP_MAX}`, icon: Zap,   color: "text-yellow-400", bar: true, pct: mpPercent },
-              { label: "Your Coins",      value: (fullProfile?.coin_balance ?? fullProfile?.coins ?? 0).toLocaleString(), icon: () => <img src={GAME_ASSETS.coin} className="w-4 h-4" />, color: "text-yellow-400" },
-              { label: "Guild HP",        value: `${fullProfile?.guild_hp ?? "—"}%`, icon: Heart,  color: "text-red-400"    },
+              { label: "Your Coins",      value: (fullProfile?.coin_balance ?? 0).toLocaleString(), icon: () => <img src={GAME_ASSETS.coin} className="w-4 h-4" />, color: "text-yellow-400" },
+              { label: "Stronghold",      value: fullProfile?.stronghold_rank ?? "E", icon: Shield, color: "text-blue-400" },
               { label: "Check-in Streak", value: `${checkInStatus?.current_streak ?? 0} days`,     icon: Flame,  color: "text-orange-400" },
             ].map(({ label, value, icon: Icon, color, bar, pct }: any) => (
               <div key={label} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
