@@ -707,12 +707,13 @@ export default function WaitingPhase({
 }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const userId = session.user.id;
+  const userId = session?.user?.id;
 
   // ── Self-contained fullProfile query — no longer a prop ──────────────────
   const { data: fullProfile } = useQuery({
     queryKey: ["landing-full-profile", userId],
     queryFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, discord_avatar, wallet_address, element, contribution_score, coin_balance, guild_id, mp, last_chest_opened")
@@ -721,6 +722,7 @@ export default function WaitingPhase({
       if (error) throw error;
       return data;
     },
+    enabled: !!userId,
     staleTime: 0,
     refetchInterval: 15_000,
   });
@@ -730,13 +732,21 @@ export default function WaitingPhase({
 
   const { data: currentMP } = useQuery({
     queryKey: ["user-mp", userId],
-    queryFn: () => getUserMP(userId),
+    queryFn: () => {
+      if (!userId) throw new Error("Not authenticated");
+      return getUserMP(userId);
+    },
+    enabled: !!userId,
     refetchInterval: 30000,
   });
 
   const { data: inventory } = useQuery({
     queryKey: ["inventory", userId],
-    queryFn: () => getInventory(userId),
+    queryFn: () => {
+      if (!userId) throw new Error("Not authenticated");
+      return getInventory(userId);
+    },
+    enabled: !!userId,
   });
 
   const mpPercent = currentMP ? (currentMP / MP_MAX) * 100 : 0;
@@ -745,6 +755,10 @@ export default function WaitingPhase({
     refetchCheckIn();
     queryClient.invalidateQueries({ queryKey: ["landing-full-profile", userId] });
   };
+
+  // Defensive: if auth is missing after hooks are declared, render nothing
+  // instead of crashing downstream.
+  if (!userId) return null;
 
   return (
     <div className="relative min-h-screen text-white">
