@@ -19,7 +19,8 @@ const BASE = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/
 const ASSETS = {
   background:  `${BASE}/background-1.png`,
   background2: `${BASE}/background-2.png`,
-  logo:        import.meta.env.BASE_URL + "logo.jpg",
+  // FIX: use /logo.jpg directly from public folder
+  logo:        "/logo.jpg",
   seal:        `${BASE}/Seal2.png`,
   fire:        `${BASE}/Fire.png`,
   water:       `${BASE}/Water.png`,
@@ -116,7 +117,7 @@ function OrbitingElements({ selectedElement, onSelect }: { selectedElement: stri
   );
 }
 
-// ── Inline Profile Dropdown (unused in waiting phase now, kept for reference) ──
+// ── Inline Profile Dropdown (used in gate/code/choice/pledge/rabel phases) ────
 function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut }: {
   full: any;
   profile: any;
@@ -226,25 +227,6 @@ function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut }: {
                 </div>
               </div>
             )}
-
-            <div className="px-4 py-3 border-b border-white/10">
-              <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">Inventory</div>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { icon: Shield, label: "Shields",  color: "text-blue-400"   },
-                  { icon: Swords, label: "Rugs",     color: "text-red-400"    },
-                  { icon: Zap,    label: "Drain",    color: "text-orange-400" },
-                  { icon: Star,   label: "Shards",   color: "text-yellow-400" },
-                ].map(({ icon: Icon, label, color }) => (
-                  <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 py-2">
-                    <Icon className={`w-4 h-4 ${color}`} />
-                    <span className="text-sm font-bold text-white">0</span>
-                    <span className="text-[9px] text-white/30 text-center">{label}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-white/25 text-center mt-2">Mystery boxes unlock in Phase 2</p>
-            </div>
 
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
@@ -378,6 +360,7 @@ export default function Landing() {
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [queryClient]);
 
+  // FIX: Select ALL fields needed by WaitingPhase + ProfileMenu
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["landing-profile", session?.user?.id],
     queryFn: async () => {
@@ -385,7 +368,10 @@ export default function Landing() {
       if (!uid) throw new Error("Not authenticated");
       const { data } = await supabase
         .from("profiles")
-        .select("guild_id, invite_code_used, username, wallet_address, element")
+        .select(
+          "id, guild_id, invite_code_used, username, wallet_address, element, " +
+          "coin_balance, contribution_score, discord_avatar, stronghold_rank, last_chest_opened"
+        )
         .eq("id", uid)
         .single();
       return data;
