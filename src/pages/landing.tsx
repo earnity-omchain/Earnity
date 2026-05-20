@@ -11,7 +11,7 @@ import {
   Sparkles, ArrowLeft, LogIn, Copy, Check, ChevronDown,
   Star, Zap, Clock, Users,
 } from "lucide-react";
-import { Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 import { auth, api, supabase } from "@/lib/supabase";
 
 // ── Asset base (Supabase CDN) ─────────────────────────────────────────────────
