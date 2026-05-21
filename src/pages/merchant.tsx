@@ -674,3 +674,4 @@ export default function Merchant() {
     </div>
   );
 }
+
