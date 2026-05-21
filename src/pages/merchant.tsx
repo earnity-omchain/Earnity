@@ -84,7 +84,7 @@ function CopyBtn({ text }: { text: string }) {
 
 function ProfileMenu({ profile, full, signOut }: any) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
