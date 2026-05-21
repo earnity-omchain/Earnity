@@ -492,7 +492,7 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
                   color: elColor,
                   fontSize: "clamp(7px, 1vw, 10px)",
                 }}>
-                {ELEMENT_ICONS[element]}
+                <img src={(elMeta as any).img} alt={element} className="w-3.5 h-3.5 object-contain" />
                 <span className="font-mono font-bold">
                   {((elMeta as any).label ?? element).toUpperCase()}
                 </span>
@@ -532,18 +532,16 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
               ))}
             </div>
 
-            {/* Element image */}
+            {/* Stronghold building image */}
             <div className="flex-1 flex items-center justify-center min-h-0">
-              {elMeta && (
-                <motion.img
-                  src={(elMeta as any).img}
-                  alt={element}
-                  className="object-contain"
-                  style={{ maxHeight: "100%", maxWidth: "100%" }}
-                  animate={{ y: [0, -4, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                />
-              )}
+              <motion.img
+                src={getBuildingImage(rank)}
+                alt="stronghold"
+                className="object-contain drop-shadow-xl"
+                style={{ maxHeight: "100%", maxWidth: "100%" }}
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              />
             </div>
 
             {/* Power */}
@@ -588,6 +586,79 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
           </span>
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+/* ── Bind Wallet Button ── */
+function BindWalletButton({ userId }: { userId: string }) {
+  const [walletInput, setWalletInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+
+  const handleBind = async () => {
+    const trimmed = walletInput.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+      setError("Please enter a valid EVM wallet address (0x…)");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: dbErr } = await supabase
+        .from("profiles")
+        .update({ wallet_address: trimmed })
+        .eq("id", userId);
+      if (dbErr) throw dbErr;
+      setSuccess(true);
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (e: any) {
+      setError(e.message ?? "Failed to bind wallet.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!showInput) {
+    return (
+      <motion.button
+        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+        onClick={() => setShowInput(true)}
+        className="w-full py-2.5 rounded-xl border border-dashed border-white/20 text-sm font-mono text-white/50 hover:text-white hover:border-white/40 transition-all flex items-center justify-center gap-2">
+        <ExternalLink className="w-3.5 h-3.5" />
+        Bind a Wallet
+      </motion.button>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-2">
+      <input
+        type="text"
+        value={walletInput}
+        onChange={e => { setWalletInput(e.target.value); setError(null); }}
+        placeholder="0x…"
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-mono text-white placeholder-white/20 outline-none focus:border-white/30 transition-colors"
+      />
+      {error && <p className="text-xs text-red-400 font-mono">{error}</p>}
+      {success && <p className="text-xs text-green-400 font-mono">Wallet bound! Refreshing…</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setShowInput(false); setWalletInput(""); setError(null); }}
+          className="flex-1 py-2 rounded-xl border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-all font-mono">
+          Cancel
+        </button>
+        <motion.button
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          onClick={handleBind}
+          disabled={saving || success}
+          className="flex-1 py-2 rounded-xl border border-white/20 bg-white/5 text-sm text-white font-mono font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          {saving ? "Saving…" : "Confirm"}
+        </motion.button>
       </div>
     </div>
   );
@@ -789,7 +860,10 @@ export default function Profile() {
               </div>
             </div>
           ) : (
-            <div className="text-sm text-white/40 text-center py-2">No wallet bound yet.</div>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <p className="text-sm text-white/40 text-center">No wallet bound yet.</p>
+              <BindWalletButton userId={profile.id} />
+            </div>
           )}
         </motion.div>
 
