@@ -405,13 +405,21 @@ const ProfileCardPreview = forwardRef<HTMLDivElement, {
         background: "#08080a",
       }}
     >
-      {/* Background tints */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full opacity-15 blur-3xl"
-          style={{ background: elColor }} />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full opacity-10 blur-3xl"
-          style={{ background: rankColor }} />
-      </div>
+      {/* Background tints — SVG gradients instead of blur so html2canvas captures them */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id={`tint-el-${rank}`} cx="100%" cy="0%" r="60%">
+            <stop offset="0%" stopColor={elColor} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={elColor} stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`tint-rank-${rank}`} cx="0%" cy="100%" r="55%">
+            <stop offset="0%" stopColor={rankColor} stopOpacity="0.16" />
+            <stop offset="100%" stopColor={rankColor} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#tint-el-${rank})`} />
+        <rect width="100%" height="100%" fill={`url(#tint-rank-${rank})`} />
+      </svg>
 
       {/* Corner brackets */}
       {[
@@ -924,7 +932,7 @@ export default function Profile() {
         </motion.div>
 
         <div className="h-8" />
-      </div>
+       </div>
     </div>
   );
 }
