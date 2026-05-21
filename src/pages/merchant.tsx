@@ -308,9 +308,9 @@ export default function Merchant() {
     parseInt(sellPrice) > 0;
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${ASSETS.background})` }} />
-      <div className="absolute inset-0 bg-black/70" />
+    <div className="min-h-[100dvh] bg-black text-white">
+      <div className="fixed inset-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url(${ASSETS.background})` }} />
+      <div className="fixed inset-0 bg-black/70 pointer-events-none" />
 
       {/* Top nav */}
       <nav className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/70 backdrop-blur-xl">
@@ -668,4 +668,4 @@ export default function Merchant() {
   );
 }
 
-               
+             
