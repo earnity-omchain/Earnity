@@ -2,7 +2,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useRef, forwardRef } from "react";
+import html2canvas from "html2canvas";
 import {
   Copy, Check, ExternalLink, Users,
   Star, Shield, Swords, Zap, Heart,
@@ -46,7 +47,7 @@ function hexToRgb(hex: string) {
   };
 }
 
-function loadImage(src: string, cors = false): Promise<HTMLImageElement> {
+function loadImage(src: string, cors = false): Promise<<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     if (cors) img.crossOrigin = "anonymous";
@@ -270,19 +271,17 @@ async function renderGuildCard(opts: {
     ctx.fillText(val, bx+boxW/2, by+58);
   });
 
-  // Element image (large, center-right area)
-  const elImgY = boxY + 110;
-  const elImgSize = 180;
-  const elImgX = rightX + (rightW - elImgSize) / 2;
-  if (elMeta) {
-    try {
-      const elImg = await loadImage((elMeta as any).img, true);
-      ctx.drawImage(elImg, elImgX, elImgY, elImgSize, elImgSize);
-    } catch {}
-  }
+  // Stronghold building image (large, center-right area)
+  const bldImgY = boxY + 110;
+  const bldImgSize = 180;
+  const bldImgX = rightX + (rightW - bldImgSize) / 2;
+  try {
+    const bldImg = await loadImage(getBuildingImage(rank), true);
+    ctx.drawImage(bldImg, bldImgX, bldImgY, bldImgSize, bldImgSize);
+  } catch {}
 
   // POWER label + value
-  const powerY = elImgY + elImgSize + 28;
+  const powerY = bldImgY + bldImgSize + 28;
   ctx.fillStyle = rgba({r:255,g:255,b:255}, 0.25); ctx.font = `11px 'Courier New', monospace`;
   ctx.textAlign = "left"; ctx.fillText("POWER", rightX, powerY);
   ctx.fillStyle = rankColor; ctx.font = `bold 28px 'Courier New', monospace`;
@@ -384,11 +383,11 @@ function ElementalCircle({ ownedElements, currentElement }: {
 }
 
 /* ── DOM Card Preview ── */
-function ProfileCardPreview({ username, guildName, element, rank, score, avatarUrl, isGuildMaster }: {
+const ProfileCardPreview = forwardRef<<HTMLDivElement, {
   username: string; guildName: string; element: string;
   rank: GuildRank; score: number; avatarUrl: string | null;
   isGuildMaster: boolean;
-}) {
+}>(({ username, guildName, element, rank, score, avatarUrl, isGuildMaster }, ref) => {
   const rankColor = RANK_COLORS[rank];
   const elMeta = element ? ELEMENT_META[element] : null;
   const elColor = (elMeta as any)?.color ?? rankColor;
@@ -397,6 +396,7 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
 
   return (
     <div
+      ref={ref}
       className="relative rounded-2xl border overflow-hidden w-full select-none"
       style={{
         aspectRatio: "1 / 1",
@@ -589,7 +589,8 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
       </div>
     </div>
   );
-}
+});
+ProfileCardPreview.displayName = "ProfileCardPreview";
 
 /* ── Bind Wallet Button ── */
 function BindWalletButton({ userId }: { userId: string }) {
@@ -668,6 +669,7 @@ function BindWalletButton({ userId }: { userId: string }) {
 export default function Profile() {
   const { session, profile, signOut } = useAuth();
   const [downloading, setDownloading] = useState(false);
+  const cardRef = useRef<<HTMLDivElement>(null);
 
   const { data: guildData } = useQuery({
     queryKey: ["profile-guild", profile?.guild_id],
@@ -734,20 +736,37 @@ export default function Profile() {
     : element ? [element] : [];
 
   const handleDownload = async () => {
-    if (downloading) return;
+    if (downloading || !cardRef.current) return;
     setDownloading(true);
     try {
-      const url = await renderGuildCard({
-        username, guildName, element, rank, score,
-        avatarUrl, userId: profile.id,
-        rankColor, rankGlow: RANK_GLOW[rank],
-        isGuildMaster,
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        backgroundColor: null,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
       });
+      const url = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.download = `${username}-guild-passport.png`;
-      a.href = url; a.click();
+      a.href = url;
+      a.click();
     } catch (e) {
-      console.error("Card render error:", e);
+      console.error("html2canvas error:", e);
+      // Fallback to manual canvas renderer
+      try {
+        const url = await renderGuildCard({
+          username, guildName, element, rank, score,
+          avatarUrl, userId: profile.id,
+          rankColor, rankGlow: RANK_GLOW[rank],
+          isGuildMaster,
+        });
+        const a = document.createElement("a");
+        a.download = `${username}-guild-passport.png`;
+        a.href = url; a.click();
+      } catch (e2) {
+        console.error("Fallback render error:", e2);
+      }
     } finally {
       setDownloading(false);
     }
@@ -770,6 +789,7 @@ export default function Profile() {
         {/* Card preview */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <ProfileCardPreview
+            ref={cardRef}
             username={username} guildName={guildName} element={element}
             rank={rank} score={score} avatarUrl={avatarUrl}
             isGuildMaster={isGuildMaster}
