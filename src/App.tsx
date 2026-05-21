@@ -54,6 +54,24 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
   );
 }
 
+// Same auth guard but renders the page fullscreen without the Layout shell
+function ProtectedFullscreen({ component: Component, ...rest }: any) {
+  const { session, profile, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-[100dvh] w-full flex items-center justify-center bg-black">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session?.user) return <Redirect to="/" />;
+  if (!profile) return <Redirect to="/connect" />;
+
+  return <Component {...rest} />;
+}
+
 function PublicLayout({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
   if (profile) return <Layout>{children}</Layout>;
@@ -94,8 +112,8 @@ function AppRouter() {
       {/* Protected */}
       <Route path="/forge" component={() => <ProtectedRoute component={Forge} />} />
       <Route path="/battlefield" component={() => <ProtectedRoute component={Battlefield} />} />
-      <Route path="/merchant" component={() => <ProtectedRoute component={Merchant} />} />
-      <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+      <Route path="/merchant" component={() => <ProtectedFullscreen component={Merchant} />} />
+      <Route path="/profile" component={() => <ProtectedFullscreen component={Profile} />} />
 
       {/* Dev */}
       <Route path="/fantasy" component={FantasyBuildings} />
