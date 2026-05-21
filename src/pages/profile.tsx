@@ -775,10 +775,10 @@ export default function Profile() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 bg-cover bg-center opacity-25"
+    <div className="min-h-[100dvh] bg-black text-white">
+      <div className="fixed inset-0 bg-cover bg-center opacity-25 pointer-events-none"
         style={{ backgroundImage: `url(${ASSETS.background})` }} />
-      <div className="absolute inset-0 bg-black/82" />
+      <div className="fixed inset-0 bg-black/82 pointer-events-none" />
 
       <nav className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/70 backdrop-blur-xl">
         <button onClick={() => setLocation("/")} className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors">
@@ -790,7 +790,6 @@ export default function Profile() {
       </nav>
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
-
         {/* Card preview */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <ProfileCardPreview
