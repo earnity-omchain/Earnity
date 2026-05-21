@@ -47,7 +47,7 @@ function hexToRgb(hex: string) {
   };
 }
 
-function loadImage(src: string, cors = false): Promise<<HTMLImageElement> {
+function loadImage(src: string, cors = false): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     if (cors) img.crossOrigin = "anonymous";
@@ -383,7 +383,7 @@ function ElementalCircle({ ownedElements, currentElement }: {
 }
 
 /* ── DOM Card Preview ── */
-const ProfileCardPreview = forwardRef<<HTMLDivElement, {
+const ProfileCardPreview = forwardRef<HTMLDivElement, {
   username: string; guildName: string; element: string;
   rank: GuildRank; score: number; avatarUrl: string | null;
   isGuildMaster: boolean;
