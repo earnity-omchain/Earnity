@@ -503,4 +503,330 @@ function ProfileCardPreview({ username, guildName, element, rank, score, avatarU
           {/* RIGHT — Stat boxes + element image + power + progress */}
           <div className="flex-1 flex flex-col gap-[4%] min-w-0">
 
-            {/* 3 info box
+            {/* 3 info boxes */}
+            <div className="grid grid-cols-3 gap-[4%]">
+              {[
+                { label: "GUILD",  value: guildName || "None" },
+                { label: "RANK",   value: rank },
+                { label: "STATUS", value: isGuildMaster ? "Master" : "Member",
+                  valueColor: isGuildMaster ? rankColor : undefined },
+              ].map(({ label, value, valueColor }) => (
+                <div key={label}
+                  className="flex flex-col items-center justify-center rounded-lg border py-[8%]"
+                  style={{
+                    borderColor: `${elColor}22`,
+                    background: "rgba(255,255,255,0.025)",
+                  }}>
+                  <span className="font-mono text-white/30 uppercase tracking-wider truncate w-full text-center"
+                    style={{ fontSize: "clamp(6px, 0.9vw, 8px)" }}>
+                    {label}
+                  </span>
+                  <span className="font-black text-white truncate w-full text-center mt-1"
+                    style={{
+                      fontSize: "clamp(8px, 1.4vw, 13px)",
+                      color: valueColor ?? "#fff",
+                    }}>
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Element image */}
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              {elMeta && (
+                <motion.img
+                  src={(elMeta as any).img}
+                  alt={element}
+                  className="object-contain"
+                  style={{ maxHeight: "100%", maxWidth: "100%" }}
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                />
+              )}
+            </div>
+
+            {/* Power */}
+            <div>
+              <span className="font-mono text-white/25 uppercase tracking-widest"
+                style={{ fontSize: "clamp(6px, 0.9vw, 9px)" }}>POWER</span>
+              <div className="font-black font-mono"
+                style={{ color: rankColor, fontSize: "clamp(12px, 2vw, 18px)" }}>
+                {score.toLocaleString()}
+              </div>
+            </div>
+
+            {/* Progress bar — full width */}
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="font-mono text-white/25 uppercase tracking-wider"
+                  style={{ fontSize: "clamp(5px, 0.8vw, 8px)" }}>RANK PROGRESS</span>
+                <span className="font-mono text-white/25"
+                  style={{ fontSize: "clamp(5px, 0.8vw, 8px)" }}>
+                  {Math.floor(progress * 100)}%
+                </span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{ height: "clamp(3px, 0.5vw, 5px)", background: "rgba(255,255,255,0.07)" }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: `linear-gradient(90deg, ${rankColor}80, ${rankColor})` }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress * 100}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* BOTTOM STRIP */}
+        <div className="border-t pt-[2%]" style={{ borderColor: `${elColor}20` }}>
+          <span className="font-mono text-white/18 uppercase tracking-[0.15em]"
+            style={{ fontSize: "clamp(5px, 0.75vw, 8px)" }}>
+            EARNITY GUILD WARS  •  {rank} RANK  •  {((elMeta as any)?.label ?? element ?? "").toUpperCase()} ELEMENT
+          </span>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ── Page ── */
+export default function Profile() {
+  const { session, profile, signOut } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+
+  const { data: guildData } = useQuery({
+    queryKey: ["profile-guild", profile?.guild_id],
+    queryFn: async () => {
+      const { data } = await supabase.from("guilds")
+        .select("id, name, element, guild_master_id")
+        .eq("id", profile!.guild_id!)
+        .single();
+      return data;
+    },
+    enabled: !!profile?.guild_id,
+  });
+
+  const { data: inventory } = useQuery({
+    queryKey: ["inventory", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("inventories").select("*").eq("user_id", profile!.id);
+      return data ?? [];
+    },
+    enabled: !!profile?.id,
+  });
+
+  const { data: elementals } = useQuery({
+    queryKey: ["user-elementals", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_elementals").select("element_type").eq("user_id", profile!.id);
+      return (data ?? []).map((e: any) => e.element_type as string);
+    },
+    enabled: !!profile?.id,
+  });
+
+  const { data: referralCodes } = useQuery({
+    queryKey: ["profile-referral-codes", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("invite_codes")
+        .select("code, is_active, used_at, used_by")
+        .eq("created_by", profile!.id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+    enabled: !!profile?.id,
+  });
+
+  if (!session || !profile) return null;
+
+  const score       = profile.contribution_score ?? 0;
+  const { rank }    = getRankFromScore(score);
+  const element     = profile.element ?? guildData?.element ?? "";
+  const username    = profile.username ?? "Warrior";
+  const avatarUrl   = profile.discord_avatar ?? null;
+  const guildName   = guildData?.name ?? "";
+  const wallet      = profile.wallet_address;
+  const shortWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
+  const activeCodes = referralCodes?.filter((c: any) => !c.used_by) ?? [];
+  const usedCodes   = referralCodes?.filter((c: any) => c.used_by) ?? [];
+  const shardCount  = (inventory?.filter((i: any) => i.item_type === "shard") ?? [])
+    .reduce((a: number, s: any) => a + (s.quantity || 0), 0);
+  const rankColor   = RANK_COLORS[rank];
+  const rc          = hexToRgb(rankColor);
+  const isGuildMaster = !!guildData && guildData.guild_master_id === profile.id;
+
+  const ownedElements: string[] = elementals?.length
+    ? elementals
+    : element ? [element] : [];
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const url = await renderGuildCard({
+        username, guildName, element, rank, score,
+        avatarUrl, userId: profile.id,
+        rankColor, rankGlow: RANK_GLOW[rank],
+        isGuildMaster,
+      });
+      const a = document.createElement("a");
+      a.download = `${username}-guild-passport.png`;
+      a.href = url; a.click();
+    } catch (e) {
+      console.error("Card render error:", e);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
+      <div className="absolute inset-0 bg-cover bg-center opacity-25"
+        style={{ backgroundImage: `url(${ASSETS.background})` }} />
+      <div className="absolute inset-0 bg-black/82" />
+
+      <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-white/8" />
+          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em]">Guild Passport</span>
+          <div className="h-px flex-1 bg-white/8" />
+        </div>
+
+        {/* Card preview */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <ProfileCardPreview
+            username={username} guildName={guildName} element={element}
+            rank={rank} score={score} avatarUrl={avatarUrl}
+            isGuildMaster={isGuildMaster}
+          />
+        </motion.div>
+
+        {/* Download */}
+        <motion.button
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+          whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}
+          onClick={handleDownload} disabled={downloading}
+          className="w-full py-3.5 rounded-xl border flex items-center justify-center gap-2.5 text-sm font-bold font-mono tracking-widest transition-all disabled:opacity-60 uppercase"
+          style={{ borderColor: `rgba(${rc.r},${rc.g},${rc.b},0.38)`,
+            background: `rgba(${rc.r},${rc.g},${rc.b},0.08)`, color: rankColor }}>
+          {downloading
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Rendering…</>
+            : <><Download className="w-4 h-4" /> Download Guild Passport</>}
+        </motion.button>
+
+        {/* Elemental circle */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-6">
+          <div className="text-[10px] uppercase tracking-wider text-white/30 mb-5 text-center font-mono">
+            Elemental Affinity
+          </div>
+          <ElementalCircle ownedElements={ownedElements} currentElement={element} />
+          <p className="text-[10px] text-white/15 text-center mt-6 font-mono">
+            Owned elements glow • Collect all 6 to unlock transcendence
+          </p>
+        </motion.div>
+
+        {/* Inventory */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-5">
+          <div className="text-[10px] uppercase tracking-wider text-white/30 mb-4 font-mono">Inventory</div>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {[
+              { icon: Sparkles, label: "Shards",     color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   val: shardCount },
+              { icon: Star,     label: "Elementals",  color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", val: elementals?.length ?? 0 },
+            ].map(({ icon: Icon, label, color, bg, border, val }) => (
+              <div key={label} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                <div className={`w-10 h-10 rounded-lg ${bg} border ${border} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white font-mono">{val}</div>
+                  <div className="text-[10px] text-white/30 uppercase">{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            {[
+              { icon: Shield, label: "Shields",    color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   type: "shields" },
+              { icon: Swords, label: "Rugs",       color: "text-red-400",    bg: "bg-red-500/10",    border: "border-red-500/20",    type: "rugs" },
+              { icon: Zap,    label: "Drainers",   color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20", type: "drainers" },
+              { icon: Heart,  label: "HP Potions", color: "text-green-400",  bg: "bg-green-500/10",  border: "border-green-500/20",  type: "hp_potions" },
+            ].map(({ icon: Icon, label, color, bg, border, type }) => {
+              const count = inventory?.find((i: any) => i.item_type === type)?.quantity ?? 0;
+              return (
+                <div key={type} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg ${bg} border ${border} flex items-center justify-center`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                    </div>
+                    <span className="text-sm text-white/60">{label}</span>
+                  </div>
+                  <span className="text-sm font-bold text-white font-mono">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Wallet */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-5">
+          <div className="text-[10px] uppercase tracking-wider text-white/30 mb-3 font-mono">Bound Wallet</div>
+          {wallet ? (
+            <div className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+              <span className="font-mono text-sm text-white/80">{shortWallet}</span>
+              <div className="flex items-center gap-1">
+                <CopyBtn text={wallet} dark />
+                <a href={`https://etherscan.io/address/${wallet}`} target="_blank" rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-white/40 text-center py-2">No wallet bound yet.</div>
+          )}
+        </motion.div>
+
+        {/* Referral codes */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-white/30" />
+              <span className="text-[10px] uppercase tracking-wider text-white/30 font-mono">Referral Codes</span>
+            </div>
+            <span className="text-[10px] text-white/20">+50 pts per referral</span>
+          </div>
+          {activeCodes.length > 0 ? (
+            <div className="space-y-2">
+              {activeCodes.map((c: any) => (
+                <div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+                  <span className="font-mono text-sm tracking-[0.15em] text-white">{c.code}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-green-400">Active</span>
+                    <CopyBtn text={c.code} dark />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-white/30 text-center py-4">Generating your referral codes…</p>
+          )}
+          {usedCodes.length > 0 && (
+            <p className="text-[10px] text-white/15 text-center mt-3 font-mono">
+              {usedCodes.length} code{usedCodes.length !== 1 ? "s" : ""} already redeemed
+            </p>
+          )}
+        </motion.div>
+
+        <div className="h-8" />
+      </div>
+    </div>
+  );
+}
