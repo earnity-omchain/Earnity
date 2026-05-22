@@ -91,6 +91,10 @@ export interface DropEntry {
   fixedQty?: number;
 }
 
+export const ITEM_BOX_DROPS: DropEntry[] = [
+  { type: "shard",     weight: 70, subtypes: [...SHARD_ELEMENTS],    fixedQty: 1 },
+  { type: "elemental", weight: 30, subtypes: [...ELEMENTAL_ELEMENTS], fixedQty: 1 },
+];
 export const MYSTERY_BOX_DROPS: DropEntry[] = [
   { type: "coin", weight: 50, minQty: 50, maxQty: 500 },
   { type: "shard", weight: 25, subtypes: [...SHARD_ELEMENTS], fixedQty: 1 },
@@ -137,6 +141,17 @@ export function getShardItemType(element: string): string {
   return `shard_${element}`;
 }
 
+export function rollItemBox(): {
+  type: string;
+  subtype: string;
+  quantity: number;
+} {
+  const elements = [...SHARD_ELEMENTS];
+  const subtype  = elements[Math.floor(Math.random() * elements.length)];
+  const type     = Math.random() < 0.70 ? "shard" : "elemental";
+  return { type, subtype, quantity: 1 };
+}
+
 export function getElementalItemType(element: string): string {
   return `elemental_${element}`;
 }
@@ -164,3 +179,4 @@ export function getChestCooldownRemaining(lastOpened: string | Date | null | und
   const hoursSince = (Date.now() - new Date(lastOpened).getTime()) / (1000 * 60 * 60);
   return Math.max(0, CHEST_COOLDOWN_HOURS - hoursSince);
 }
+    
