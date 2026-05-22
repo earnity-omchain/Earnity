@@ -110,8 +110,8 @@ function AppRouter() {
       </Route>
 
       {/* Protected */}
-      <Route path="/forge" component={() => <ProtectedRoute component={Forge} />} />
-      <Route path="/battlefield" component={() => <ProtectedRoute component={Battlefield} />} />
+      <Route path="/forge" component={() => <ProtectedFullscreen component={Forge} />} />
+      <Route path="/battlefield" component={() => <ProtectedFullscreen component={Battlefield} />} />
       <Route path="/merchant" component={() => <ProtectedFullscreen component={Merchant} />} />
       <Route path="/profile" component={() => <ProtectedFullscreen component={Profile} />} />
 
