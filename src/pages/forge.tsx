@@ -430,128 +430,23 @@ export default function Forge() {
           <ItemBoxSection
             boxCount={boxCount}
             onOpenOne={() => openMutation.mutate()}
-            onOpenMax={handleOpenMax}ENTS.filter((el) => getElementalCount(el) > 0)
-  );
-
-  const totalElementals = ELEMENTS.reduce((sum, el) => sum + getElementalCount(el), 0);
-  const canSubmitWallet = totalElementals >= ELEMENTALS_FOR_WALLET;
-
-  return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${ASSETS.background})` }}
-      />
-      <div className="absolute inset-0 bg-black/75" />
-
-      {/* ── NAV — matches Socials page style ── */}
-      <nav className="relative z-20 flex items-center justify-between px-5 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md">
-        {/* Left: back arrow + EARNITY */}
-        <button
-          onClick={() => setLocation("/")}
-          className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15">
-              <img src={ASSETS.logo} className="w-full h-full object-cover" />
-            </div>
-            <span className="text-sm font-bold tracking-tight">EARNITY</span>
-          </div>
-        </button>
-
-        {/* Center: page title */}
-        <span className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.15em] uppercase text-white/60">
-          THE FORGE
-        </span>
-
-        {/* Right: spacer */}
-        <div className="w-24" />
-      </nav>
-
-      {/* ── CONTENT ── */}
-      <div className="relative z-10 flex flex-col items-center px-6 pt-12 pb-24">
-
-        {/* ELEMENTAL AFFINITY SECTION */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full flex flex-col items-center"
-        >
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 mb-2">
-            Elemental Affinity
-          </p>
-
-          <ElementalRing ownedElements={ownedElements} />
+            onOpenMax={handleOpenMax}
+            isOpening={isOpening}
+          />
         </motion.div>
 
-        {/* Progress bar */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="w-full max-w-xs mt-14"
-        >
-          <div className="flex justify-between text-[10px] text-white/40 mb-1.5">
-            <span className="uppercase tracking-widest">Elementals</span>
-            <span className="font-mono">{totalElementals} / {ELEMENTALS_FOR_WALLET}</span>
-          </div>
-          <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-400"
-              initial={{ width: 0 }}
-              animate={{ width: `${(totalElementals / ELEMENTALS_FOR_WALLET) * 100}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            />
-          </div>
-          <p className="text-[9px] text-white/25 mt-1.5 text-center">
-            Collect all 6 elementals to unlock wallet submission for GTD
-          </p>
+        {/* 3. Shard Progress */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          className="w-full">
+          <ShardCards inventory={inventory} />
         </motion.div>
 
-        {/* GTD Unlock banner */}
-        {canSubmitWallet && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-6 w-full max-w-xs rounded-2xl border border-green-700/40 bg-green-950/25 p-4 text-center"
-          >
-            <Wallet className="w-7 h-7 text-green-400 mx-auto mb-2" />
-            <p className="text-sm font-bold text-green-400 mb-3">Wallet Submission Unlocked!</p>
-            <button className="w-full py-2 rounded-xl bg-green-600 hover:bg-green-500 transition-colors text-sm font-semibold">
-              Submit Wallet for GTD
-            </button>
-          </motion.div>
-        )}
-
-        {/* Shard table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="w-full"
-        >
-          <ShardTable inventory={inventory} />
-        </motion.div>
-
-        {/* Coming soon notice */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-10 text-center"
-        >
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 mb-1">
-            Full Forge Features
-          </p>
-          <p className="text-xs text-white/20">
-            Forge your rewards and claim exclusive loot as a chosen combatant.
-          </p>
-        </motion.div>
       </div>
+
+      {/* Reward reveal modal */}
+      <AnimatePresence>
+        {reward && <RewardReveal reward={reward} onClose={() => setReward(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
-  
