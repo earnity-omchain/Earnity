@@ -114,6 +114,24 @@ export async function openChest(userId: string) {
   };
 }
 
+// ── Item box ─────────────────────────────────────────────────
+
+export async function openItemBox(userId: string) {
+  const { data, error } = await supabase.rpc("open_item_box", {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data as {
+    success: boolean;
+    message: string;
+    reward?: {
+      type:     "shard" | "elemental";
+      subtype:  string;   // element name e.g. "fire"
+      quantity: number;
+    };
+  };
+}
+
 // ── Crafting ───────────────────────────────────────────────
 
 export async function craftElemental(userId: string, element: string) {
