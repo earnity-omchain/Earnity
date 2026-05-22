@@ -1,79 +1,86 @@
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Shield, Swords, Zap, Star, Gem, Coins,
-  Heart, Flame, FlaskConical, Plus, X,
-  Package, ShoppingBag, Tag, Loader2,
+  Coins, Plus, X, Package, ShoppingBag, Tag, Loader2,
 } from "lucide-react";
-
-/* ── Assets ── */
-const ASSETS = {
-  background: import.meta.env.BASE_URL + "background-2.png",
-  fire:       import.meta.env.BASE_URL + "Fire.png",
-  water:      import.meta.env.BASE_URL + "Water.png",
-  nature:     import.meta.env.BASE_URL + "Nature.png",
-  rock:       import.meta.env.BASE_URL + "Rock.png",
-  lightning:  import.meta.env.BASE_URL + "Lightning.png",
-  wind:       import.meta.env.BASE_URL + "Wind.png",
-};
-
-const ELEMENT_IMGS: Record<string, string> = {
-  fire: ASSETS.fire, water: ASSETS.water, nature: ASSETS.nature,
-  rock: ASSETS.rock, lightning: ASSETS.lightning, wind: ASSETS.wind,
-};
+import {
+  GAME_ASSETS,
+  ELEMENTAL_IMAGES,
+  SHARD_IMAGES,
+  ITEM_IMAGES,
+} from "@/lib/assets";
 
 /* ── Item metadata — keys must match DB item_type exactly ── */
 const ITEM_META: Record<string, {
-  name: string; icon: any;
+  name: string;
   color: string; border: string; bg: string; desc: string;
 }> = {
-  shield:           { name: "Shield Card",      icon: Shield,       color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "Protect your guild for 24 hours" },
-  rug:              { name: "Rug Card",          icon: Swords,       color: "text-red-400",    border: "border-red-500/30",     bg: "bg-red-500/10",     desc: "Drain 25 points from a target user" },
-  drain:            { name: "Drainer Card",      icon: Zap,          color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "Drain points from an entire guild" },
-  nuke:             { name: "Nuke Card",         icon: Flame,        color: "text-slate-300",  border: "border-slate-300/30",   bg: "bg-slate-300/10",   desc: "Break an active Shield on any guild" },
-  hp_potion:        { name: "HP Potion",         icon: Heart,        color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "Restore health points" },
-  mp_potion:        { name: "MP Potion",         icon: FlaskConical, color: "text-purple-400", border: "border-purple-500/30",  bg: "bg-purple-500/10",  desc: "Restore mana points" },
-  shard_fire:       { name: "Fire Shard",        icon: Gem,          color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "Collect 5 shards for a guaranteed mint" },
-  shard_water:      { name: "Water Shard",       icon: Gem,          color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "Collect 5 shards for a guaranteed mint" },
-  shard_nature:     { name: "Nature Shard",      icon: Gem,          color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "Collect 5 shards for a guaranteed mint" },
-  shard_rock:       { name: "Rock Shard",        icon: Gem,          color: "text-stone-400",  border: "border-stone-500/30",   bg: "bg-stone-500/10",   desc: "Collect 5 shards for a guaranteed mint" },
-  shard_lightning:  { name: "Lightning Shard",   icon: Gem,          color: "text-yellow-400", border: "border-yellow-400/30",  bg: "bg-yellow-400/10",  desc: "Collect 5 shards for a guaranteed mint" },
-  shard_wind:       { name: "Wind Shard",        icon: Gem,          color: "text-sky-300",    border: "border-sky-300/30",     bg: "bg-sky-300/10",     desc: "Collect 5 shards for a guaranteed mint" },
-  elemental_fire:   { name: "Fire Elemental",    icon: Star,         color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "A powerful fire elemental ally" },
-  elemental_water:  { name: "Water Elemental",   icon: Star,         color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "A powerful water elemental ally" },
-  elemental_nature: { name: "Nature Elemental",  icon: Star,         color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "A powerful nature elemental ally" },
-  elemental_rock:   { name: "Rock Elemental",    icon: Star,         color: "text-stone-400",  border: "border-stone-500/30",   bg: "bg-stone-500/10",   desc: "A powerful rock elemental ally" },
-  elemental_lightning:{ name:"Lightning Elemental",icon: Star,       color: "text-yellow-400", border: "border-yellow-400/30",  bg: "bg-yellow-400/10",  desc: "A powerful lightning elemental ally" },
-  elemental_wind:   { name: "Wind Elemental",    icon: Star,         color: "text-sky-300",    border: "border-sky-300/30",     bg: "bg-sky-300/10",     desc: "A powerful wind elemental ally" },
+  shield:              { name: "Shield Card",          color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "Protect your guild for 24 hours" },
+  rug:                 { name: "Rug Card",              color: "text-red-400",    border: "border-red-500/30",     bg: "bg-red-500/10",     desc: "Drain 25 points from a target user" },
+  drain:               { name: "Drainer Card",          color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "Drain points from an entire guild" },
+  nuke:                { name: "Nuke Card",             color: "text-slate-300",  border: "border-slate-300/30",   bg: "bg-slate-300/10",   desc: "Break an active Shield on any guild" },
+  hp_potion:           { name: "HP Potion",             color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "Restore health points" },
+  mp_potion:           { name: "MP Potion",             color: "text-purple-400", border: "border-purple-500/30",  bg: "bg-purple-500/10",  desc: "Restore mana points" },
+  shard_fire:          { name: "Fire Shard",            color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "Collect 5 shards for a guaranteed mint" },
+  shard_water:         { name: "Water Shard",           color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "Collect 5 shards for a guaranteed mint" },
+  shard_nature:        { name: "Nature Shard",          color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "Collect 5 shards for a guaranteed mint" },
+  shard_rock:          { name: "Rock Shard",            color: "text-stone-400",  border: "border-stone-500/30",   bg: "bg-stone-500/10",   desc: "Collect 5 shards for a guaranteed mint" },
+  shard_lightning:     { name: "Lightning Shard",       color: "text-yellow-400", border: "border-yellow-400/30",  bg: "bg-yellow-400/10",  desc: "Collect 5 shards for a guaranteed mint" },
+  shard_wind:          { name: "Wind Shard",            color: "text-sky-300",    border: "border-sky-300/30",     bg: "bg-sky-300/10",     desc: "Collect 5 shards for a guaranteed mint" },
+  elemental_fire:      { name: "Fire Elemental",        color: "text-orange-400", border: "border-orange-500/30",  bg: "bg-orange-500/10",  desc: "A powerful fire elemental ally" },
+  elemental_water:     { name: "Water Elemental",       color: "text-blue-400",   border: "border-blue-500/30",    bg: "bg-blue-500/10",    desc: "A powerful water elemental ally" },
+  elemental_nature:    { name: "Nature Elemental",      color: "text-green-400",  border: "border-green-500/30",   bg: "bg-green-500/10",   desc: "A powerful nature elemental ally" },
+  elemental_rock:      { name: "Rock Elemental",        color: "text-stone-400",  border: "border-stone-500/30",   bg: "bg-stone-500/10",   desc: "A powerful rock elemental ally" },
+  elemental_lightning: { name: "Lightning Elemental",   color: "text-yellow-400", border: "border-yellow-400/30",  bg: "bg-yellow-400/10",  desc: "A powerful lightning elemental ally" },
+  elemental_wind:      { name: "Wind Elemental",        color: "text-sky-300",    border: "border-sky-300/30",     bg: "bg-sky-300/10",     desc: "A powerful wind elemental ally" },
 };
 
 function getItemMeta(itemType: string) {
   return ITEM_META[itemType] ?? {
-    name: itemType, icon: Package,
+    name: itemType,
     color: "text-white/60", border: "border-white/20", bg: "bg-white/5",
     desc: "Unknown item",
   };
 }
 
-/* ── Item image: element image for shards/elementals, icon otherwise ── */
+/* ── Resolve the correct CDN image for any item type ── */
+function getItemImage(itemType: string): string | null {
+  // Shards → shard images
+  if (itemType.startsWith("shard_")) {
+    const el = itemType.replace("shard_", "") as keyof typeof SHARD_IMAGES;
+    return SHARD_IMAGES[el] ?? null;
+  }
+  // Elementals → elemental images
+  if (itemType.startsWith("elemental_")) {
+    const el = itemType.replace("elemental_", "") as keyof typeof ELEMENTAL_IMAGES;
+    return ELEMENTAL_IMAGES[el] ?? null;
+  }
+  // Game items → item images
+  const itemMap: Record<string, string> = {
+    shield:    ITEM_IMAGES.shield,
+    nuke:      ITEM_IMAGES.nuke,
+    drain:     ITEM_IMAGES.drain,
+    rug:       ITEM_IMAGES.rug,
+    hp_potion: ITEM_IMAGES.hpPotion,
+    mp_potion: ITEM_IMAGES.mpPotion,
+  };
+  return itemMap[itemType] ?? null;
+}
+
+/* ── Item visual ── */
 function ItemVisual({ itemType, size = "md" }: { itemType: string; size?: "sm" | "md" | "lg" }) {
   const meta = getItemMeta(itemType);
-  const Icon = meta.icon;
-  const el = itemType.startsWith("elemental_") ? itemType.replace("elemental_", "")
-           : itemType.startsWith("shard_")     ? itemType.replace("shard_", "")
-           : null;
-  const img = el ? ELEMENT_IMGS[el] : null;
+  const img = getItemImage(itemType);
   const sz = size === "lg" ? "w-16 h-16" : size === "sm" ? "w-8 h-8" : "w-11 h-11";
-  const iconSz = size === "lg" ? "w-8 h-8" : size === "sm" ? "w-4 h-4" : "w-5 h-5";
 
   return (
     <div className={`${sz} rounded-xl border ${meta.border} bg-black/40 flex items-center justify-center flex-shrink-0 overflow-hidden`}>
       {img
-        ? <img src={img} alt={el!} className="w-full h-full object-contain p-1" />
-        : <Icon className={`${iconSz} ${meta.color}`} />
+        ? <img src={img} alt={itemType} className="w-full h-full object-contain p-1" />
+        : <Package className={`w-5 h-5 ${meta.color}`} />
       }
     </div>
   );
@@ -396,17 +403,14 @@ export default function Merchant() {
   });
 
   const userId = session?.user?.id;
-
-  /* browsing listings = all active, including own (shown differently) */
   const browseListings = listings;
-  /* sell tab: own inventory items only */
   const sellableItems = inventory.filter((i: any) => i.quantity > 0);
 
   return (
     <div className="relative min-h-[100dvh] w-full bg-black text-white overflow-x-hidden">
       {/* Background */}
       <div className="fixed inset-0 bg-cover bg-center opacity-20 pointer-events-none"
-        style={{ backgroundImage: `url(${ASSETS.background})` }} />
+        style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }} />
       <div className="fixed inset-0 bg-black/80 pointer-events-none" />
 
       {/* Toast */}
@@ -508,7 +512,6 @@ export default function Merchant() {
             <AnimatePresence>
               {sellableItems.map((item: any) => {
                 const meta = getItemMeta(item.item_type);
-                const Icon = meta.icon;
                 return (
                   <motion.div key={item.item_type}
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -518,7 +521,9 @@ export default function Merchant() {
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-white text-sm">{meta.name}</div>
                       <div className="text-[11px] text-white/40 mt-0.5">{meta.desc}</div>
-                      <div className="text-xs text-white/50 font-mono mt-1">Owned: <span className="text-white font-bold">{item.quantity}</span></div>
+                      <div className="text-xs text-white/50 font-mono mt-1">
+                        Owned: <span className="text-white font-bold">{item.quantity}</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => setSellModal(item)}
