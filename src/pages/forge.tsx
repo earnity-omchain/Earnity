@@ -5,16 +5,14 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInventory, openItemBox } from "@/lib/supabase-gw";
-import { ELEMENT_META } from "@/lib/assets";
+import { ELEMENT_META, GAME_ASSETS, LOGO } from "@/lib/assets";
 import { SHARDS_PER_ELEMENTAL, ELEMENTALS_FOR_WALLET, getShardItemType } from "@/lib/game-config";
 
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
 const ASSETS = {
-  background: import.meta.env.BASE_URL + "background-2.png",
-  logo:       import.meta.env.BASE_URL + "logo.jpg",
-  seal:       `${CDN}/Game%20assets/Seal2.png`,
-  itembox:    `${CDN}/Game%20assets/itembox-closed.png`,
-  itemboxOpen:`${CDN}/Game%20assets/itembox-opened.png`,
+  seal:        `${CDN}/Game%20assets/Seal2.png`,
+  itembox:     `${CDN}/Game%20assets/itembox-closed.png`,
+  itemboxOpen: `${CDN}/Game%20assets/itembox-opened.png`,
 };
 
 const ELEMENTS = ["fire", "water", "nature", "rock", "lightning", "wind"] as const;
@@ -53,8 +51,8 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
 
   return (
     <div className="relative mx-auto" style={{ width: 320, height: 320 }}>
-      <div className="absolute inset-0 rounded-full border border-white/10" style={{ margin: 12 }} />
-      <div className="absolute inset-0 rounded-full border border-white/5"  style={{ margin: 24 }} />
+      <div className="absolute inset-0 rounded-full border border-white/20" style={{ margin: 12 }} />
+      <div className="absolute inset-0 rounded-full border border-white/10" style={{ margin: 24 }} />
 
       <div className="absolute inset-0" style={{ transform: `rotate(${rotation}deg)` }}>
         {RING_POSITIONS.map(({ angle, element }) => {
@@ -74,14 +72,14 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
               )}
               <div className="w-full h-full rounded-full flex items-center justify-center border"
                 style={{
-                  background: owned ? `radial-gradient(circle, ${colors.glow}25, black)` : "rgba(20,20,20,0.9)",
-                  borderColor: owned ? colors.glow : "rgba(255,255,255,0.1)",
+                  background: owned ? `radial-gradient(circle, ${colors.glow}30, rgba(10,10,10,0.95))` : "rgba(15,15,15,0.92)",
+                  borderColor: owned ? colors.glow : "rgba(255,255,255,0.2)",
                 }}>
                 {owned ? (
                   <img src={meta.img} alt={element} className="w-8 h-8 object-contain"
                     style={{ filter: `drop-shadow(0 0 6px ${colors.glow})` }} />
                 ) : (
-                  <div className="text-white/15 text-[9px] uppercase tracking-widest font-mono">
+                  <div className="text-white/40 text-[9px] uppercase tracking-widest font-mono">
                     {colors.label.slice(0, 2)}
                   </div>
                 )}
@@ -91,18 +89,18 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
         })}
       </div>
 
-      <div className="absolute flex items-center justify-center rounded-full border border-white/15"
+      <div className="absolute flex items-center justify-center rounded-full border border-white/20"
         style={{
           left: "50%", top: "50%", transform: "translate(-50%, -50%)",
           width: centerSize, height: centerSize,
-          background: "radial-gradient(circle, rgba(255,255,255,0.05), black)",
-          boxShadow: "0 0 30px rgba(255,255,255,0.05)",
+          background: "radial-gradient(circle, rgba(255,255,255,0.08), rgba(0,0,0,0.9))",
+          boxShadow: "0 0 30px rgba(255,255,255,0.08)",
         }}>
-        <img src={ASSETS.seal} alt="Seal" className="w-16 h-16 object-contain opacity-80" />
+        <img src={ASSETS.seal} alt="Seal" className="w-16 h-16 object-contain opacity-90" />
       </div>
 
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-5
-        text-[10px] font-mono tracking-widest uppercase text-white/40 whitespace-nowrap text-center">
+        text-[10px] font-mono tracking-widest uppercase text-white/60 whitespace-nowrap text-center">
         Owned elements glow • Collect all 6 to unlock transcendence
       </div>
     </div>
@@ -122,15 +120,14 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm px-6"
       onClick={onClose}>
       <motion.div initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }}
         transition={{ type: "spring", damping: 18 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xs rounded-3xl border bg-[#0d0d0d] p-8 text-center"
-        style={{ borderColor: `${colors?.glow}40` }}>
+        className="w-full max-w-xs rounded-3xl border bg-zinc-950 p-8 text-center shadow-2xl"
+        style={{ borderColor: `${colors?.glow}50` }}>
 
-        {/* Box opening animation */}
         <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 0.6 }}
           className="w-20 h-20 mx-auto mb-5">
           <img src={ASSETS.itemboxOpen} alt="opened" className="w-full h-full object-contain
@@ -142,7 +139,6 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
           <span className="text-green-400 text-sm font-semibold">Box Opened!</span>
         </div>
 
-        {/* Reward */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="mt-4 flex flex-col items-center gap-3">
           <div className="w-20 h-20 rounded-2xl border flex items-center justify-center"
@@ -152,13 +148,13 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
               style={{ filter: `drop-shadow(0 0 8px ${colors?.glow})` }} />
           </div>
           <p className="text-lg font-bold" style={{ color: colors?.glow }}>{label}</p>
-          <p className="text-xs text-white/35 capitalize">{reward.type} • ×{reward.quantity}</p>
+          <p className="text-xs text-white/50 capitalize">{reward.type} • ×{reward.quantity}</p>
         </motion.div>
 
         <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
           onClick={onClose}
-          className="mt-6 w-full py-2.5 rounded-xl bg-white/8 hover:bg-white/15 border border-white/10
-            text-sm font-medium text-white/70 hover:text-white transition-colors">
+          className="mt-6 w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15
+            text-sm font-medium text-white/80 hover:text-white transition-colors">
           Nice!
         </motion.button>
       </motion.div>
@@ -168,63 +164,53 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
 
 // ── Item Box Section ──────────────────────────────────────────────────────────
 function ItemBoxSection({
-  boxCount,
-  onOpenOne,
-  onOpenMax,
-  isOpening,
+  boxCount, onOpenOne, onOpenMax, isOpening,
 }: {
-  boxCount: number;
-  onOpenOne: () => void;
-  onOpenMax: () => void;
-  isOpening: boolean;
+  boxCount: number; onOpenOne: () => void; onOpenMax: () => void; isOpening: boolean;
 }) {
   const hasBoxes = boxCount > 0;
 
   return (
     <div className="w-full max-w-sm mx-auto mt-12">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">
         Item Box
       </p>
 
-      <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
+      <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md p-5">
         <div className="flex items-center gap-4 mb-5">
-          {/* Box image */}
           <motion.div animate={hasBoxes ? { scale: [1, 1.04, 1] } : {}}
             transition={{ duration: 2.5, repeat: Infinity }}
             className="w-16 h-16 flex-shrink-0">
             <img src={ASSETS.itembox} alt="Item Box"
-              className={`w-full h-full object-contain ${!hasBoxes ? "opacity-25 grayscale" : "drop-shadow-[0_0_12px_rgba(168,85,247,0.4)]"}`} />
+              className={`w-full h-full object-contain ${!hasBoxes ? "opacity-30 grayscale" : "drop-shadow-[0_0_12px_rgba(168,85,247,0.4)]"}`} />
           </motion.div>
 
           <div className="flex-1">
-            <p className="text-sm font-bold text-white/80">Item Box</p>
-            <p className="text-xs text-white/35 mt-0.5 leading-relaxed">
+            <p className="text-sm font-bold text-white">Item Box</p>
+            <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
               Contains a random shard or elemental
             </p>
-            {/* Drop rates */}
             <div className="flex gap-3 mt-2">
-              <span className="text-[10px] text-white/30">⬡ Shard <span className="text-white/50">70%</span></span>
-              <span className="text-[10px] text-white/30">✦ Elemental <span className="text-purple-400">30%</span></span>
+              <span className="text-[10px] text-white/50">⬡ Shard <span className="text-white/70">70%</span></span>
+              <span className="text-[10px] text-white/50">✦ Elemental <span className="text-purple-400">30%</span></span>
             </div>
           </div>
 
-          {/* Count badge */}
           <div className="flex-shrink-0 flex flex-col items-center">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-lg
-              ${hasBoxes ? "border-purple-500/40 bg-purple-500/15 text-purple-300" : "border-white/8 bg-white/5 text-white/20"}`}>
+              ${hasBoxes ? "border-purple-500/60 bg-purple-500/20 text-purple-200" : "border-white/15 bg-white/8 text-white/40"}`}>
               {boxCount}
             </div>
-            <span className="text-[9px] text-white/25 mt-1">owned</span>
+            <span className="text-[9px] text-white/40 mt-1">owned</span>
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-2">
           <button onClick={onOpenOne} disabled={!hasBoxes || isOpening}
             className={`flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all
               ${hasBoxes && !isOpening
                 ? "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.3)]"
-                : "bg-white/5 text-white/20 cursor-not-allowed border border-white/8"}`}>
+                : "bg-white/8 text-white/30 cursor-not-allowed border border-white/10"}`}>
             {isOpening
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <><Package className="w-3.5 h-3.5" /> Open</>}
@@ -233,14 +219,14 @@ function ItemBoxSection({
           <button onClick={onOpenMax} disabled={!hasBoxes || isOpening || boxCount < 2}
             className={`flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all
               ${hasBoxes && !isOpening && boxCount >= 2
-                ? "bg-white/8 hover:bg-white/15 text-white/70 hover:text-white border border-white/10"
-                : "bg-white/3 text-white/15 cursor-not-allowed border border-white/5"}`}>
+                ? "bg-white/12 hover:bg-white/20 text-white/80 hover:text-white border border-white/15"
+                : "bg-white/5 text-white/25 cursor-not-allowed border border-white/8"}`}>
             <Package className="w-3.5 h-3.5" /> Open All ({boxCount})
           </button>
         </div>
 
         {!hasBoxes && (
-          <p className="text-center text-[10px] text-white/20 mt-3">
+          <p className="text-center text-[10px] text-white/40 mt-3">
             No item boxes — earn one from the daily check-in on Day 6
           </p>
         )}
@@ -251,55 +237,55 @@ function ItemBoxSection({
 
 // ── Shard Cards ───────────────────────────────────────────────────────────────
 function ShardCards({ inventory }: { inventory: { item_type: string; quantity: number }[] | undefined }) {
-  const getShardCount    = (el: string) => inventory?.find((i) => i.item_type === getShardItemType(el))?.quantity || 0;
+  const getShardCount     = (el: string) => inventory?.find((i) => i.item_type === getShardItemType(el))?.quantity || 0;
   const getElementalCount = (el: string) => inventory?.find((i) => i.item_type === `elemental_${el}`)?.quantity || 0;
 
   return (
     <div className="w-full max-w-sm mx-auto mt-12">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">
         Shard Progress
       </p>
       <div className="grid grid-cols-2 gap-3">
         {ELEMENTS.map((element) => {
-          const meta      = ELEMENT_META[element];
-          const colors    = ELEMENT_COLORS[element];
-          const shards    = getShardCount(element);
+          const meta       = ELEMENT_META[element];
+          const colors     = ELEMENT_COLORS[element];
+          const shards     = getShardCount(element);
           const elementals = getElementalCount(element);
-          const pct       = Math.min(100, (shards / SHARDS_PER_ELEMENTAL) * 100);
-          const ready     = shards >= SHARDS_PER_ELEMENTAL;
+          const pct        = Math.min(100, (shards / SHARDS_PER_ELEMENTAL) * 100);
+          const ready      = shards >= SHARDS_PER_ELEMENTAL;
 
           return (
-            <div key={element} className="relative rounded-2xl border p-3"
+            <div key={element} className="relative rounded-2xl border p-3 backdrop-blur-sm"
               style={{
-                borderColor: ready ? `${colors.glow}50` : "rgba(255,255,255,0.08)",
-                background:  ready ? `${colors.glow}12` : "rgba(255,255,255,0.03)",
+                borderColor: ready ? `${colors.glow}60` : "rgba(255,255,255,0.12)",
+                background:  ready ? `${colors.glow}15` : "rgba(0,0,0,0.65)",
               }}>
               <div className="flex items-center gap-2 mb-2">
                 <img src={meta.img} alt={element} className="w-8 h-8 object-contain"
-                  style={elementals > 0 ? { filter: `drop-shadow(0 0 5px ${colors.glow})` } : { opacity: 0.5 }} />
+                  style={elementals > 0 ? { filter: `drop-shadow(0 0 5px ${colors.glow})` } : { opacity: 0.6 }} />
                 <div>
                   <div className="text-sm font-bold capitalize"
-                    style={{ color: elementals > 0 ? colors.glow : "rgba(255,255,255,0.5)" }}>
+                    style={{ color: elementals > 0 ? colors.glow : "rgba(255,255,255,0.7)" }}>
                     {meta.label}
                   </div>
-                  <div className="text-[10px] text-white/30">{elementals} crafted</div>
+                  <div className="text-[10px] text-white/50">{elementals} crafted</div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 text-[10px] text-white/40 mb-1.5">
-                <img src={meta.shard} className="w-3 h-3 object-contain" />
-                <span className={ready ? "text-green-400 font-semibold" : ""}>
+              <div className="flex items-center gap-1 text-[10px] text-white/60 mb-1.5">
+                <img src={meta.shard} className="w-3 h-3 object-contain" alt="" />
+                <span className={ready ? "text-green-400 font-semibold" : "text-white/60"}>
                   {shards} / {SHARDS_PER_ELEMENTAL} shards
                 </span>
               </div>
 
-              <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <motion.div className="h-full rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${pct}%` }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
                   style={{
-                    background: ready ? colors.glow : "rgba(255,255,255,0.25)",
+                    background: ready ? colors.glow : "rgba(255,255,255,0.35)",
                     boxShadow:  ready ? `0 0 6px ${colors.glow}` : "none",
                   }} />
               </div>
@@ -317,7 +303,7 @@ export default function Forge() {
   const { profile }     = useAuth();
   const queryClient     = useQueryClient();
 
-  const [reward, setReward]   = useState<BoxReward | null>(null);
+  const [reward, setReward]         = useState<BoxReward | null>(null);
   const [openingMax, setOpeningMax] = useState(false);
 
   const { data: inventory } = useQuery({
@@ -326,11 +312,11 @@ export default function Forge() {
     enabled:  !!profile?.id,
   });
 
-  const getCount = (type: string) => inventory?.find((i) => i.item_type === type)?.quantity || 0;
-  const getElementalCount = (el: string) => getCount(`elemental_${el}`);
+  const getCount          = (type: string) => inventory?.find((i) => i.item_type === type)?.quantity || 0;
+  const getElementalCount = (el: string)   => getCount(`elemental_${el}`);
 
-  const boxCount      = getCount("item_box");
-  const ownedElements = new Set(ELEMENTS.filter((el) => getElementalCount(el) > 0));
+  const boxCount        = getCount("item_box");
+  const ownedElements   = new Set(ELEMENTS.filter((el) => getElementalCount(el) > 0));
   const totalElementals = ELEMENTS.reduce((sum, el) => sum + getElementalCount(el), 0);
   const canSubmitWallet = totalElementals >= ELEMENTALS_FOR_WALLET;
 
@@ -342,7 +328,6 @@ export default function Forge() {
     },
   });
 
-  // Open all boxes sequentially, show last reward
   const handleOpenMax = async () => {
     if (boxCount < 1) return;
     setOpeningMax(true);
@@ -361,24 +346,28 @@ export default function Forge() {
   const isOpening = openMutation.isPending || openingMax;
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${ASSETS.background})` }} />
-      <div className="absolute inset-0 bg-black/75" />
+    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-zinc-950 text-white">
+
+      {/* ── Background: dark silhouette style like merchant ── */}
+      <div className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none"
+        style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }} />
+      {/* Deep dark gradient overlay for readability */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(5,5,10,0.92) 50%, rgba(0,0,0,0.95) 100%)" }} />
 
       {/* Nav */}
-      <nav className="relative z-20 flex items-center justify-between px-5 py-4 border-b border-white/8 bg-black/20 backdrop-blur-md">
+      <nav className="relative z-20 flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/40 backdrop-blur-md">
         <button onClick={() => setLocation("/")}
           className="flex items-center gap-2 text-white/70 hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15">
-              <img src={ASSETS.logo} className="w-full h-full object-cover" />
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/20">
+              <img src={LOGO} className="w-full h-full object-cover" alt="logo" />
             </div>
             <span className="text-sm font-bold tracking-tight">EARNITY</span>
           </div>
         </button>
-        <span className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.15em] uppercase text-white/60">
+        <span className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.15em] uppercase text-white/80">
           THE FORGE
         </span>
         <div className="w-24" />
@@ -390,24 +379,24 @@ export default function Forge() {
         {/* 1. Elemental Affinity */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="w-full flex flex-col items-center">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 mb-2">Elemental Affinity</p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/50 mb-2 font-mono">Elemental Affinity</p>
           <ElementalRing ownedElements={ownedElements} />
         </motion.div>
 
         {/* Elementals progress bar */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
           className="w-full max-w-xs mt-14">
-          <div className="flex justify-between text-[10px] text-white/40 mb-1.5">
-            <span className="uppercase tracking-widest">Elementals</span>
-            <span className="font-mono">{totalElementals} / {ELEMENTALS_FOR_WALLET}</span>
+          <div className="flex justify-between text-[10px] text-white/60 mb-1.5">
+            <span className="uppercase tracking-widest font-mono">Elementals</span>
+            <span className="font-mono text-white/80">{totalElementals} / {ELEMENTALS_FOR_WALLET}</span>
           </div>
-          <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
             <motion.div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-400"
               initial={{ width: 0 }}
               animate={{ width: `${(totalElementals / ELEMENTALS_FOR_WALLET) * 100}%` }}
               transition={{ duration: 1, ease: "easeOut" }} />
           </div>
-          <p className="text-[9px] text-white/25 mt-1.5 text-center">
+          <p className="text-[9px] text-white/45 mt-1.5 text-center">
             Collect all 6 elementals to unlock wallet submission for GTD
           </p>
         </motion.div>
@@ -415,10 +404,10 @@ export default function Forge() {
         {/* GTD unlock */}
         {canSubmitWallet && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="mt-6 w-full max-w-xs rounded-2xl border border-green-700/40 bg-green-950/25 p-4 text-center">
+            className="mt-6 w-full max-w-xs rounded-2xl border border-green-600/50 bg-green-950/40 backdrop-blur-sm p-4 text-center">
             <Wallet className="w-7 h-7 text-green-400 mx-auto mb-2" />
-            <p className="text-sm font-bold text-green-400 mb-3">Wallet Submission Unlocked!</p>
-            <button className="w-full py-2 rounded-xl bg-green-600 hover:bg-green-500 transition-colors text-sm font-semibold">
+            <p className="text-sm font-bold text-green-300 mb-3">Wallet Submission Unlocked!</p>
+            <button className="w-full py-2 rounded-xl bg-green-600 hover:bg-green-500 transition-colors text-sm font-semibold text-white">
               Submit Wallet for GTD
             </button>
           </motion.div>
