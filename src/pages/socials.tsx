@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft, Twitter, MessageCircle, ExternalLink,
   ChevronDown, Copy, Check, Shield, Swords, Zap, Star, Users,
-  CheckCircle2, Timer,
+  CheckCircle2, Timer, Send, Clock,
 } from "lucide-react";
 
 const BASE = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets/Game%20assets";
@@ -43,9 +43,119 @@ const TWEET_QUESTS = [
   { id: "tweet-4", tweetId: "2052693406078443692", url: "https://x.com/i/status/2052693406078443692", actions: [{ id: "t4-like", label: "Like", points: 25 }, { id: "t4-comment", label: "Comment", points: 50 }, { id: "t4-retweet", label: "Retweet", points: 25 }] },
   { id: "tweet-5", tweetId: "2054172878988251258", url: "https://x.com/i/status/2054172878988251258", actions: [{ id: "t5-like", label: "Like", points: 25 }, { id: "t5-comment", label: "Comment", points: 50 }, { id: "t5-retweet", label: "Retweet", points: 25 }] },
   { id: "tweet-6", tweetId: "2053744328703381648", url: "https://x.com/i/status/2053744328703381648", actions: [{ id: "t6-like", label: "Like", points: 25 }, { id: "t6-comment", label: "Comment", points: 50 }, { id: "t6-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-7", tweetId: "2054523111559586162", url: "https://x.com/i/status/2054523111559586162", actions: [{ id: "t7-like", label: "Like", points: 25 }, { id: "t7-comment", label: "Comment", points: 50 }, { id: "t7-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-8", tweetId: "2055981443734548829", url: "https://x.com/i/status/2055981443734548829", actions: [{ id: "t8-like", label: "Like", points: 25 }, { id: "t8-comment", label: "Comment", points: 50 }, { id: "t8-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-9", tweetId: "2056357953309962624", url: "https://x.com/i/status/2056357953309962624", actions: [{ id: "t9-like", label: "Like", points: 25 }, { id: "t9-comment", label: "Comment", points: 50 }, { id: "t9-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-10", tweetId: "2057355754718265779", url: "https://x.com/i/status/2057355754718265779", actions: [{ id: "t10-like", label: "Like", points: 25 }, { id: "t10-comment", label: "Comment", points: 50 }, { id: "t10-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-11", tweetId: "2057789188771385690", url: "https://x.com/i/status/2057789188771385690", actions: [{ id: "t11-like", label: "Like", points: 25 }, { id: "t11-comment", label: "Comment", points: 50 }, { id: "t11-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-12", tweetId: "2055705533596778558", url: "https://x.com/i/status/2055705533596778558", actions: [{ id: "t12-like", label: "Like", points: 25 }, { id: "t12-comment", label: "Comment", points: 50 }, { id: "t12-retweet", label: "Retweet", points: 25 }] },
 ];
 
 const CD_SECS = 60;
+
+const PROFILE_CARD_TWEET_TEXT = `My Earnity Profile Card has been summoned 
+
+The portal sees my strength.
+
+Locked in and ready for the Guild Wars.
+
+@earnity_ #EarnityGuildWars`;
+
+// ── Profile Card Tweet Task ───────────────────────────────────────────────────
+function ProfileCardTweetTask({ userId, completedQuests, onAwarded }: {
+  userId?: string;
+  completedQuests: Set<string>;
+  onAwarded: (pts: number, questId: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const questId = "tweet-profile-card";
+  const points = 1000;
+  const serverDone = completedQuests.has(questId);
+
+  const [phase, setPhase] = useState<"idle" | "submitted" | "pending" | "done">(() => {
+    if (serverDone) return "done";
+    return "idle";
+  });
+  const [tweetUrl, setTweetUrl] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (serverDone && phase !== "done") setPhase("done");
+  }, [serverDone]);
+
+  const handleTweet = () => {
+    const encoded = encodeURIComponent(PROFILE_CARD_TWEET_TEXT);
+    window.open(`https://twitter.com/intent/tweet?text=${encoded}`, "_blank");
+    if (phase === "idle") setPhase("submitted");
+  };
+
+  const handleSubmit = async () => {
+    if (!tweetUrl.trim()) { setSubmitError("Please paste your tweet URL."); return; }
+    if (!userId) { setSubmitError("Not authenticated."); return; }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const { error } = await supabase
+        .from("pending_tweet_submissions")
+        .insert({ user_id: userId, quest_id: questId, tweet_url: tweetUrl.trim(), points_reward: points });
+      if (error) throw error;
+      setPhase("pending");
+    } catch (e: any) {
+      setSubmitError(e.message ?? "Submission failed. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (phase === "done") return (
+    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold flex-shrink-0">
+      <CheckCircle2 className="w-4 h-4" /> Completed
+    </div>
+  );
+
+  if (phase === "pending") return (
+    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 text-sm font-semibold flex-shrink-0">
+      <Clock className="w-4 h-4" /> Pending Review
+    </div>
+  );
+
+  if (phase === "submitted") return (
+    <div className="flex flex-col gap-2 w-full mt-3">
+      <p className="text-xs text-white/50">Paste your tweet URL after posting:</p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={tweetUrl}
+          onChange={e => { setTweetUrl(e.target.value); setSubmitError(null); }}
+          placeholder="https://x.com/yourhandle/status/..."
+          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-white placeholder-white/20 outline-none focus:border-white/30 transition-colors"
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 text-sm font-semibold hover:bg-sky-500/25 transition-colors disabled:opacity-50"
+        >
+          {submitting ? <Timer className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          Submit
+        </button>
+      </div>
+      {submitError && <p className="text-xs text-red-400 font-mono">{submitError}</p>}
+      <button onClick={handleTweet} className="text-xs text-white/30 hover:text-white/60 transition-colors text-left">
+        Tweet again →
+      </button>
+    </div>
+  );
+
+  return (
+    <button
+      onClick={handleTweet}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-400 text-sm font-semibold transition-colors flex-shrink-0"
+    >
+      <Twitter className="w-4 h-4" /> Tweet → +{points}
+    </button>
+  );
+}
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -425,6 +535,40 @@ export default function Socials() {
                 />
               </motion.div>
             ))}
+
+            {/* Profile Card Tweet Task */}
+            <motion.div
+              initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.29, type: "spring", damping: 22 }}
+              className="flex flex-col gap-3 p-4 rounded-2xl border border-sky-500/30 bg-sky-500/8"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl border border-sky-500/30 bg-black/40 flex items-center justify-center flex-shrink-0">
+                  <Twitter className="w-5 h-5 text-sky-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white text-sm">Share Your Profile Card</span>
+                    <span className="text-xs text-sky-400 font-mono font-bold">+1,000 pts</span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-0.5 leading-relaxed">
+                    Tweet your Earnity Guild Passport with the official text. Must include your profile card screenshot.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tweet text preview */}
+              <div className="bg-black/30 rounded-xl border border-white/8 px-4 py-3">
+                <p className="text-xs text-white/60 font-mono whitespace-pre-line leading-relaxed">{PROFILE_CARD_TWEET_TEXT}</p>
+                <p className="text-[10px] text-sky-400/60 mt-2 italic">* Attach your Profile Card screenshot before posting</p>
+              </div>
+
+              <ProfileCardTweetTask
+                userId={session?.user?.id}
+                completedQuests={completedQuests}
+                onAwarded={handleAwarded}
+              />
+            </motion.div>
           </div>
         </motion.section>
 
