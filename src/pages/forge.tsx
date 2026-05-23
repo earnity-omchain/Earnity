@@ -521,12 +521,12 @@ export default function Forge() {
           className="w-full max-w-xs mt-14">
           <div className="flex justify-between text-[10px] text-white/60 mb-1.5">
             <span className="uppercase tracking-widest font-mono">Elementals</span>
-            <span className="font-mono text-white/80">{totalElementals} / {ELEMENTALS_FOR_WALLET}</span>
+            <span className="font-mono text-white/80">{ownedElements.size} / {ELEMENTALS_FOR_WALLET}</span>
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
             <motion.div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-400"
               initial={{ width: 0 }}
-              animate={{ width: `${(totalElementals / ELEMENTALS_FOR_WALLET) * 100}%` }}
+              animate={{ width: `${(ownedElements.size / ELEMENTALS_FOR_WALLET) * 100}%` }}
               transition={{ duration: 1, ease: "easeOut" }} />
           </div>
           <p className="text-[9px] text-white/45 mt-1.5 text-center">
