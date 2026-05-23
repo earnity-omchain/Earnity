@@ -80,9 +80,28 @@ function ProfileCardTweetTask({ userId, completedQuests, onAwarded }: {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check if user already has a pending submission in the DB (survives refresh)
+  const { data: existingSubmission } = useQuery({
+    queryKey: ["profile-card-submission", userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("pending_tweet_submissions")
+        .select("status")
+        .eq("user_id", userId!)
+        .eq("quest_id", questId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!userId && !serverDone,
+    staleTime: 0,
+  });
+
   useEffect(() => {
-    if (serverDone && phase !== "done") setPhase("done");
-  }, [serverDone]);
+    if (serverDone && phase !== "done") { setPhase("done"); return; }
+    if (existingSubmission && phase === "idle") {
+      setPhase(existingSubmission.status === "approved" ? "done" : "pending");
+    }
+  }, [serverDone, existingSubmission]);
 
   const handleTweet = () => {
     const encoded = encodeURIComponent(PROFILE_CARD_TWEET_TEXT);
