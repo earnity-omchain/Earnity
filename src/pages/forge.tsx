@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { motion, AnimatePresence, useAnimationFrame } from "framer-motion";
-import { ArrowLeft, Wallet, Package, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, Wallet, Package, CheckCircle2, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,11 @@ const RING_POSITIONS: { angle: number; element: Element }[] = [
   { angle: 210,  element: "wind" },
 ];
 
+// EVM wallet address validation
+function isValidEVMAddress(addr: string) {
+  return /^0x[0-9a-fA-F]{40}$/.test(addr.trim());
+}
+
 // ── Elemental Ring ────────────────────────────────────────────────────────────
 function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
   const angleRef = useRef(0);
@@ -57,9 +62,9 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
 
       <div className="absolute inset-0" style={{ transform: `rotate(${rotation}deg)` }}>
         {RING_POSITIONS.map(({ angle, element }) => {
-          const rad = (angle * Math.PI) / 180;
-          const x = 160 + radius * Math.cos(rad) - 28;
-          const y = 160 + radius * Math.sin(rad) - 28;
+          const rad    = (angle * Math.PI) / 180;
+          const x      = 160 + radius * Math.cos(rad) - 28;
+          const y      = 160 + radius * Math.sin(rad) - 28;
           const owned  = ownedElements.has(element);
           const meta   = ELEMENT_META[element];
           const colors = ELEMENT_COLORS[element];
@@ -73,7 +78,7 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
               )}
               <div className="w-full h-full rounded-full flex items-center justify-center border"
                 style={{
-                  background: owned ? `radial-gradient(circle, ${colors.glow}30, rgba(10,10,10,0.95))` : "rgba(15,15,15,0.92)",
+                  background:  owned ? `radial-gradient(circle, ${colors.glow}30, rgba(10,10,10,0.95))` : "rgba(15,15,15,0.92)",
                   borderColor: owned ? colors.glow : "rgba(255,255,255,0.2)",
                 }}>
                 {owned ? (
@@ -108,16 +113,14 @@ function ElementalRing({ ownedElements }: { ownedElements: Set<string> }) {
   );
 }
 
-// ── Reward reveal overlay ─────────────────────────────────────────────────────
+// ── Reward reveal ─────────────────────────────────────────────────────────────
 type BoxReward = { type: "shard" | "elemental"; subtype: string; quantity: number };
 
 function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => void }) {
   const meta   = ELEMENT_META[reward.subtype];
   const colors = ELEMENT_COLORS[reward.subtype as Element];
   const img    = reward.type === "shard" ? meta?.shard : meta?.img;
-  const label  = reward.type === "shard"
-    ? `${reward.subtype.charAt(0).toUpperCase() + reward.subtype.slice(1)} Shard`
-    : `${reward.subtype.charAt(0).toUpperCase() + reward.subtype.slice(1)} Elemental`;
+  const label  = `${reward.subtype.charAt(0).toUpperCase() + reward.subtype.slice(1)} ${reward.type === "shard" ? "Shard" : "Elemental"}`;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -128,34 +131,26 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-xs rounded-3xl border bg-zinc-950 p-8 text-center shadow-2xl"
         style={{ borderColor: `${colors?.glow}50` }}>
-
-        <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 0.6 }}
-          className="w-20 h-20 mx-auto mb-5">
-          <img src={ASSETS.itemboxOpen} alt="opened" className="w-full h-full object-contain
-            drop-shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+        <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 0.6 }} className="w-20 h-20 mx-auto mb-5">
+          <img src={ASSETS.itemboxOpen} alt="opened" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
         </motion.div>
-
         <div className="flex items-center justify-center gap-1.5 mb-2">
           <CheckCircle2 className="w-4 h-4 text-green-400" />
           <span className="text-green-400 text-sm font-semibold">Box Opened!</span>
         </div>
-
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="mt-4 flex flex-col items-center gap-3">
           <div className="w-20 h-20 rounded-2xl border flex items-center justify-center"
-            style={{ borderColor: `${colors?.glow}50`, background: `${colors?.glow}15`,
-              boxShadow: `0 0 24px ${colors?.glow}30` }}>
+            style={{ borderColor: `${colors?.glow}50`, background: `${colors?.glow}15`, boxShadow: `0 0 24px ${colors?.glow}30` }}>
             <img src={img} alt={label} className="w-12 h-12 object-contain"
               style={{ filter: `drop-shadow(0 0 8px ${colors?.glow})` }} />
           </div>
           <p className="text-lg font-bold" style={{ color: colors?.glow }}>{label}</p>
           <p className="text-xs text-white/50 capitalize">{reward.type} • ×{reward.quantity}</p>
         </motion.div>
-
         <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
           onClick={onClose}
-          className="mt-6 w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15
-            text-sm font-medium text-white/80 hover:text-white transition-colors">
+          className="mt-6 w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sm font-medium text-white/80 hover:text-white transition-colors">
           Nice!
         </motion.button>
       </motion.div>
@@ -163,40 +158,87 @@ function RewardReveal({ reward, onClose }: { reward: BoxReward; onClose: () => v
   );
 }
 
+// ── Wallet Submit Modal ───────────────────────────────────────────────────────
+function WalletModal({ onClose, onSubmit, isPending }: {
+  onClose: () => void;
+  onSubmit: (wallet: string) => void;
+  isPending: boolean;
+}) {
+  const [wallet, setWallet] = useState("");
+  const valid = isValidEVMAddress(wallet);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+      onClick={onClose}>
+      <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-green-600/30 bg-zinc-950 p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-green-400" />
+            <h3 className="text-base font-bold text-white">Submit Wallet</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-white/50 mb-5 leading-relaxed">
+          Enter your EVM wallet address to secure your GTD spot. Make sure this is correct — it will be used for reward distribution.
+        </p>
+
+        <div className="mb-4">
+          <label className="block text-[10px] text-white/50 mb-1.5 uppercase tracking-wider font-mono">EVM Wallet Address</label>
+          <input
+            type="text"
+            value={wallet}
+            onChange={(e) => setWallet(e.target.value)}
+            placeholder="0x..."
+            className={`w-full bg-white/8 border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none transition-colors
+              ${wallet.length > 0
+                ? valid ? "border-green-500/50 focus:border-green-400" : "border-red-500/50 focus:border-red-400"
+                : "border-white/15 focus:border-white/40"}`}
+          />
+          {wallet.length > 0 && !valid && (
+            <p className="text-[10px] text-red-400 mt-1.5">Invalid EVM address. Must start with 0x and be 42 characters.</p>
+          )}
+        </div>
+
+        <button
+          onClick={() => valid && !isPending && onSubmit(wallet.trim())}
+          disabled={!valid || isPending}
+          className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-30 text-sm font-bold text-white transition-colors flex items-center justify-center gap-2">
+          {isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <><Wallet className="w-4 h-4" /> Submit Wallet</>}
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Item Box Section ──────────────────────────────────────────────────────────
-function ItemBoxSection({
-  boxCount, onOpenOne, onOpenMax, isOpening,
-}: {
+function ItemBoxSection({ boxCount, onOpenOne, onOpenMax, isOpening }: {
   boxCount: number; onOpenOne: () => void; onOpenMax: () => void; isOpening: boolean;
 }) {
   const hasBoxes = boxCount > 0;
-
   return (
     <div className="w-full max-w-sm mx-auto mt-12">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">
-        Item Box
-      </p>
-
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">Item Box</p>
       <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md p-5">
         <div className="flex items-center gap-4 mb-5">
           <motion.div animate={hasBoxes ? { scale: [1, 1.04, 1] } : {}}
-            transition={{ duration: 2.5, repeat: Infinity }}
-            className="w-16 h-16 flex-shrink-0">
+            transition={{ duration: 2.5, repeat: Infinity }} className="w-16 h-16 flex-shrink-0">
             <img src={ASSETS.itembox} alt="Item Box"
               className={`w-full h-full object-contain ${!hasBoxes ? "opacity-30 grayscale" : "drop-shadow-[0_0_12px_rgba(168,85,247,0.4)]"}`} />
           </motion.div>
-
           <div className="flex-1">
             <p className="text-sm font-bold text-white">Item Box</p>
-            <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
-              Contains a random shard or elemental
-            </p>
+            <p className="text-xs text-white/50 mt-0.5 leading-relaxed">Contains a random shard or elemental</p>
             <div className="flex gap-3 mt-2">
               <span className="text-[10px] text-white/50">⬡ Shard <span className="text-white/70">70%</span></span>
               <span className="text-[10px] text-white/50">✦ Elemental <span className="text-purple-400">30%</span></span>
             </div>
           </div>
-
           <div className="flex-shrink-0 flex flex-col items-center">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-lg
               ${hasBoxes ? "border-purple-500/60 bg-purple-500/20 text-purple-200" : "border-white/15 bg-white/8 text-white/40"}`}>
@@ -205,18 +247,14 @@ function ItemBoxSection({
             <span className="text-[9px] text-white/40 mt-1">owned</span>
           </div>
         </div>
-
         <div className="flex gap-2">
           <button onClick={onOpenOne} disabled={!hasBoxes || isOpening}
             className={`flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all
               ${hasBoxes && !isOpening
                 ? "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.3)]"
                 : "bg-white/8 text-white/30 cursor-not-allowed border border-white/10"}`}>
-            {isOpening
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <><Package className="w-3.5 h-3.5" /> Open</>}
+            {isOpening ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Package className="w-3.5 h-3.5" /> Open</>}
           </button>
-
           <button onClick={onOpenMax} disabled={!hasBoxes || isOpening || boxCount < 2}
             className={`flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all
               ${hasBoxes && !isOpening && boxCount >= 2
@@ -225,7 +263,6 @@ function ItemBoxSection({
             <Package className="w-3.5 h-3.5" /> Open All ({boxCount})
           </button>
         </div>
-
         {!hasBoxes && (
           <p className="text-center text-[10px] text-white/40 mt-3">
             No item boxes — earn one from the daily check-in on Day 6
@@ -237,11 +274,7 @@ function ItemBoxSection({
 }
 
 // ── Shard Cards ───────────────────────────────────────────────────────────────
-function ShardCards({
-  inventory,
-  onForge,
-  isForging,
-}: {
+function ShardCards({ inventory, onForge, isForging }: {
   inventory: { item_type: string; quantity: number }[] | undefined;
   onForge: (el: Element) => void;
   isForging: boolean;
@@ -251,9 +284,7 @@ function ShardCards({
 
   return (
     <div className="w-full max-w-sm mx-auto mt-12">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">
-        Shard Progress
-      </p>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">Shard Progress</p>
       <div className="grid grid-cols-2 gap-3">
         {ELEMENTS.map((element) => {
           const meta       = ELEMENT_META[element];
@@ -280,14 +311,12 @@ function ShardCards({
                   <div className="text-[10px] text-white/50">{elementals} crafted</div>
                 </div>
               </div>
-
               <div className="flex items-center gap-1 text-[10px] text-white/60 mb-1.5">
                 <img src={meta.shard} className="w-3 h-3 object-contain" alt="" />
                 <span className={ready ? "text-green-400 font-semibold" : "text-white/60"}>
                   {shards} / {SHARDS_PER_ELEMENTAL} shards
                 </span>
               </div>
-
               <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <motion.div className="h-full rounded-full"
                   initial={{ width: 0 }}
@@ -298,17 +327,11 @@ function ShardCards({
                     boxShadow:  ready ? `0 0 6px ${colors.glow}` : "none",
                   }} />
               </div>
-
               {ready && (
-                <button
-                  onClick={() => onForge(element)}
-                  disabled={isForging}
-                  className="mt-3 w-full py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider
-                    transition-all border
-                    bg-zinc-900 hover:bg-zinc-800 text-white
-                    disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ borderColor: `${colors.glow}60`, boxShadow: `0 0 10px ${colors.glow}20` }}
-                >
+                <button onClick={() => onForge(element)} disabled={isForging}
+                  className="mt-3 w-full py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border
+                    bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ borderColor: `${colors.glow}60`, boxShadow: `0 0 10px ${colors.glow}20` }}>
                   {isForging ? "Forging..." : `Forge ${meta.label}`}
                 </button>
               )}
@@ -322,12 +345,41 @@ function ShardCards({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Forge() {
-  const [, setLocation] = useLocation();
-  const { profile }     = useAuth();
-  const queryClient     = useQueryClient();
+  const [, setLocation]     = useLocation();
+  const { profile }         = useAuth();
+  const queryClient         = useQueryClient();
 
-  const [reward, setReward]         = useState<<BoxReward | null>(null);
-  const [openingMax, setOpeningMax] = useState(false);
+  const [reward, setReward]           = useState<BoxReward | null>(null);
+  const [openingMax, setOpeningMax]   = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletToast, setWalletToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  const showToast = (msg: string, ok = true) => {
+    setWalletToast({ msg, ok });
+    setTimeout(() => setWalletToast(null), 3500);
+  };
+
+  // Fetch bound wallet from profile
+  const { data: profileData } = useQuery({
+    queryKey: ["profile-wallet", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles")
+        .select("wallet_address").eq("id", profile!.id).single();
+      return data;
+    },
+    enabled: !!profile?.id,
+  });
+
+  // Check if already submitted to GTD
+  const { data: gtdData } = useQuery({
+    queryKey: ["gtd-submission", profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("gtd_submissions")
+        .select("wallet, submitted_at").eq("user_id", profile!.id).maybeSingle();
+      return data;
+    },
+    enabled: !!profile?.id,
+  });
 
   const { data: inventory } = useQuery({
     queryKey: ["inventory", profile?.id],
@@ -343,6 +395,44 @@ export default function Forge() {
   const totalElementals = ELEMENTS.reduce((sum, el) => sum + getElementalCount(el), 0);
   const canSubmitWallet = totalElementals >= ELEMENTALS_FOR_WALLET;
 
+  const boundWallet  = profileData?.wallet_address;
+  const alreadySubmittedGTD = !!gtdData?.wallet;
+
+  // GTD submit mutation — always writes to gtd_submissions
+  const walletMutation = useMutation({
+    mutationFn: async (walletAddress: string) => {
+      const { error } = await supabase.from("gtd_submissions").upsert({
+        user_id: profile!.id,
+        wallet:  walletAddress,
+      }, { onConflict: "user_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gtd-submission", profile?.id] });
+      setShowWalletModal(false);
+      showToast("GTD submission successful!");
+    },
+    onError: (e: any) => {
+      setShowWalletModal(false);
+      showToast(e.message ?? "Submission failed", false);
+    },
+  });
+
+  const handleWalletButton = () => {
+    if (alreadySubmittedGTD) {
+      // Already submitted — just confirm
+      showToast(`Already submitted: ${gtdData!.wallet.slice(0, 6)}…${gtdData!.wallet.slice(-4)}`);
+      return;
+    }
+    if (boundWallet) {
+      // Has bound wallet — submit it directly to GTD, no modal needed
+      walletMutation.mutate(boundWallet);
+    } else {
+      // No wallet at all — open modal to enter one
+      setShowWalletModal(true);
+    }
+  };
+
   const openMutation = useMutation({
     mutationFn: () => openItemBox(profile!.id),
     onSuccess: (data) => {
@@ -353,10 +443,7 @@ export default function Forge() {
 
   const forgeMutation = useMutation({
     mutationFn: (element: Element) =>
-      supabase.rpc("forge_elemental", {
-        p_user_id: profile!.id,
-        p_element_type: element,
-      }),
+      supabase.rpc("forge_elemental", { p_user_id: profile!.id, p_element_type: element }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory", profile?.id] });
     },
@@ -382,10 +469,9 @@ export default function Forge() {
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-zinc-950 text-white">
 
-      {/* ── Background: dark silhouette style like merchant ── */}
+      {/* Background */}
       <div className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none"
         style={{ backgroundImage: `url(${GAME_ASSETS.background2})` }} />
-      {/* Deep dark gradient overlay for readability */}
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(5,5,10,0.92) 50%, rgba(0,0,0,0.95) 100%)" }} />
 
@@ -406,6 +492,19 @@ export default function Forge() {
         </span>
         <div className="w-24" />
       </nav>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {walletToast && (
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+            className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl border text-sm font-medium shadow-xl backdrop-blur-xl ${
+              walletToast.ok
+                ? "bg-green-500/15 border-green-500/30 text-green-400"
+                : "bg-red-500/15 border-red-500/30 text-red-400"}`}>
+            {walletToast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center px-6 pt-12 pb-24">
@@ -438,11 +537,41 @@ export default function Forge() {
         {/* GTD unlock */}
         {canSubmitWallet && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="mt-6 w-full max-w-xs rounded-2xl border border-green-600/50 bg-green-950/40 backdrop-blur-sm p-4 text-center">
-            <Wallet className="w-7 h-7 text-green-400 mx-auto mb-2" />
-            <p className="text-sm font-bold text-green-300 mb-3">Wallet Submission Unlocked!</p>
-            <button className="w-full py-2 rounded-xl bg-green-600 hover:bg-green-500 transition-colors text-sm font-semibold text-white">
-              Submit Wallet for GTD
+            className={`mt-6 w-full max-w-xs rounded-2xl border backdrop-blur-sm p-4 text-center ${
+              alreadySubmittedGTD
+                ? "border-green-600/50 bg-green-950/40"
+                : "border-indigo-600/50 bg-indigo-950/40"
+            }`}>
+            <Wallet className={`w-7 h-7 mx-auto mb-2 ${alreadySubmittedGTD ? "text-green-400" : "text-indigo-400"}`} />
+            <p className={`text-sm font-bold mb-1 ${alreadySubmittedGTD ? "text-green-300" : "text-indigo-300"}`}>
+              {alreadySubmittedGTD ? "GTD Spot Secured!" : "Wallet Submission Unlocked!"}
+            </p>
+            {alreadySubmittedGTD ? (
+              <p className="text-[10px] text-green-400/70 font-mono mb-3">
+                {gtdData!.wallet.slice(0, 6)}…{gtdData!.wallet.slice(-4)}
+              </p>
+            ) : boundWallet ? (
+              <p className="text-[10px] text-white/40 font-mono mb-3">
+                Will use bound wallet: {boundWallet.slice(0, 6)}…{boundWallet.slice(-4)}
+              </p>
+            ) : (
+              <p className="text-[10px] text-white/40 mb-3">No wallet bound yet — you'll enter one now</p>
+            )}
+            <button
+              onClick={handleWalletButton}
+              disabled={walletMutation.isPending}
+              className={`w-full py-2 rounded-xl text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 ${
+                alreadySubmittedGTD
+                  ? "bg-green-800/60 cursor-default"
+                  : "bg-indigo-600 hover:bg-indigo-500"
+              }`}>
+              {walletMutation.isPending
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+                : alreadySubmittedGTD
+                  ? "✓ Submitted"
+                  : boundWallet
+                    ? "Submit Wallet for GTD"
+                    : "Enter & Submit Wallet"}
             </button>
           </motion.div>
         )}
@@ -470,9 +599,18 @@ export default function Forge() {
 
       </div>
 
-      {/* Reward reveal modal */}
+      {/* Modals */}
       <AnimatePresence>
         {reward && <RewardReveal reward={reward} onClose={() => setReward(null)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showWalletModal && (
+          <WalletModal
+            onClose={() => setShowWalletModal(false)}
+            onSubmit={(w) => walletMutation.mutate(w)}
+            isPending={walletMutation.isPending}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
