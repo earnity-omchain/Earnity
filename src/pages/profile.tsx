@@ -512,7 +512,7 @@ const ProfileCardPreview = forwardRef<
     <div
       ref={ref}
       className="relative border overflow-hidden w-full select-none"
-      style={{ aspectRatio: "4 / 3", borderColor: `${elColor}55`, background: "#08080a" }}
+      style={{ aspectRatio: "1 / 1", borderColor: `${elColor}55`, background: "#08080a" }}
     >
       {/* Background tints */}
       <svg
