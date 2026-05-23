@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInventory, openItemBox } from "@/lib/supabase-gw";
+import { supabase } from "@/lib/supabase";
 import { ELEMENT_META, GAME_ASSETS, LOGO } from "@/lib/assets";
 import { SHARDS_PER_ELEMENTAL, ELEMENTALS_FOR_WALLET, getShardItemType } from "@/lib/game-config";
 
@@ -236,7 +237,15 @@ function ItemBoxSection({
 }
 
 // ── Shard Cards ───────────────────────────────────────────────────────────────
-function ShardCards({ inventory }: { inventory: { item_type: string; quantity: number }[] | undefined }) {
+function ShardCards({
+  inventory,
+  onForge,
+  isForging,
+}: {
+  inventory: { item_type: string; quantity: number }[] | undefined;
+  onForge: (el: Element) => void;
+  isForging: boolean;
+}) {
   const getShardCount     = (el: string) => inventory?.find((i) => i.item_type === getShardItemType(el))?.quantity || 0;
   const getElementalCount = (el: string) => inventory?.find((i) => i.item_type === `elemental_${el}`)?.quantity || 0;
 
@@ -289,6 +298,20 @@ function ShardCards({ inventory }: { inventory: { item_type: string; quantity: n
                     boxShadow:  ready ? `0 0 6px ${colors.glow}` : "none",
                   }} />
               </div>
+
+              {ready && (
+                <button
+                  onClick={() => onForge(element)}
+                  disabled={isForging}
+                  className="mt-3 w-full py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider
+                    transition-all border
+                    bg-zinc-900 hover:bg-zinc-800 text-white
+                    disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ borderColor: `${colors.glow}60`, boxShadow: `0 0 10px ${colors.glow}20` }}
+                >
+                  {isForging ? "Forging..." : `Forge ${meta.label}`}
+                </button>
+              )}
             </div>
           );
         })}
@@ -303,7 +326,7 @@ export default function Forge() {
   const { profile }     = useAuth();
   const queryClient     = useQueryClient();
 
-  const [reward, setReward]         = useState<BoxReward | null>(null);
+  const [reward, setReward]         = useState<<BoxReward | null>(null);
   const [openingMax, setOpeningMax] = useState(false);
 
   const { data: inventory } = useQuery({
@@ -324,6 +347,17 @@ export default function Forge() {
     mutationFn: () => openItemBox(profile!.id),
     onSuccess: (data) => {
       if (data.success && data.reward) setReward(data.reward as BoxReward);
+      queryClient.invalidateQueries({ queryKey: ["inventory", profile?.id] });
+    },
+  });
+
+  const forgeMutation = useMutation({
+    mutationFn: (element: Element) =>
+      supabase.rpc("forge_elemental", {
+        p_user_id: profile!.id,
+        p_element_type: element,
+      }),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory", profile?.id] });
     },
   });
@@ -427,7 +461,11 @@ export default function Forge() {
         {/* 3. Shard Progress */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
           className="w-full">
-          <ShardCards inventory={inventory} />
+          <ShardCards
+            inventory={inventory}
+            onForge={(el) => forgeMutation.mutate(el)}
+            isForging={forgeMutation.isPending}
+          />
         </motion.div>
 
       </div>
