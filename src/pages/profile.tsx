@@ -8,7 +8,7 @@ import {
   Copy, Check, ExternalLink, Users,
   Star, Shield, Swords, Zap, Heart,
   Wind, Flame, Droplets, Mountain, TreePine, CloudLightning,
-  Sparkles, Download, Loader2, Crown, ArrowLeft,
+  Sparkles, Crown, ArrowLeft,
 } from "lucide-react";
 import {
   getRankFromScore,
@@ -511,8 +511,8 @@ const ProfileCardPreview = forwardRef<
   return (
     <div
       ref={ref}
-      className="relative rounded-2xl border overflow-hidden w-full select-none"
-      style={{ aspectRatio: "1 / 1", borderColor: `${elColor}55`, background: "#08080a" }}
+      className="relative border overflow-hidden w-full select-none"
+      style={{ aspectRatio: "4 / 3", borderColor: `${elColor}55`, background: "#08080a" }}
     >
       {/* Background tints */}
       <svg
@@ -583,7 +583,7 @@ const ProfileCardPreview = forwardRef<
           <div className="flex flex-col gap-[5%] w-[40%]">
             {/* Avatar */}
             <div
-              className="relative rounded-xl overflow-hidden border"
+              className="relative overflow-hidden border"
               style={{ aspectRatio: "1/1", width: "100%", borderColor: `${elColor}50` }}
             >
               {avatarUrl ? (
@@ -850,7 +850,6 @@ function BindWalletButton({ userId }: { userId: string }) {
 export default function Profile() {
   const [, setLocation]   = useLocation();
   const { session, profile, signOut } = useAuth();
-  const [downloading, setDownloading] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   /* ── Queries ── */
@@ -939,28 +938,6 @@ export default function Profile() {
       ? [element]
       : [];
 
-  /* ── Download — always use canvas renderer (no html2canvas) ── */
-  const handleDownload = async () => {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      const url = await renderGuildCard({
-        username, guildName, element, rank, score,
-        avatarUrl, userId: profile.id,
-        rankColor, rankGlow: RANK_GLOW[rank],
-        isGuildMaster,
-      });
-      const a = document.createElement("a");
-      a.download = `${username}-guild-passport.png`;
-      a.href     = url;
-      a.click();
-    } catch (e) {
-      console.error("Render error:", e);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   return (
     <div className="min-h-[100dvh] bg-black text-white">
       <div
@@ -986,7 +963,7 @@ export default function Profile() {
       <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
 
         {/* Card preview */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <div>
           <ProfileCardPreview
             ref={cardRef}
             username={username}
@@ -997,30 +974,7 @@ export default function Profile() {
             avatarUrl={avatarUrl}
             isGuildMaster={isGuildMaster}
           />
-        </motion.div>
-
-        {/* Download button */}
-        <motion.button
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          whileHover={{ scale: 1.015 }}
-          whileTap={{ scale: 0.985 }}
-          onClick={handleDownload}
-          disabled={downloading}
-          className="w-full py-3.5 rounded-xl border flex items-center justify-center gap-2.5 text-sm font-bold font-mono tracking-widest transition-all disabled:opacity-60 uppercase"
-          style={{
-            borderColor: `rgba(${rc.r},${rc.g},${rc.b},0.38)`,
-            background:  `rgba(${rc.r},${rc.g},${rc.b},0.08)`,
-            color: rankColor,
-          }}
-        >
-          {downloading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Rendering…</>
-          ) : (
-            <><Download className="w-4 h-4" /> Download Guild Passport</>
-          )}
-        </motion.button>
+        </div>
 
         {/* Elemental circle */}
         <motion.div
