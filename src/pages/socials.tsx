@@ -37,18 +37,7 @@ const FOLLOW_QUESTS = [
 ];
 
 const TWEET_QUESTS = [
-  { id: "tweet-1", tweetId: "2049489255022375413", url: "https://x.com/i/status/2049489255022375413", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-2", tweetId: "2048723259009462774", url: "https://x.com/i/status/2048723259009462774", actions: [{ id: "t2-like", label: "Like", points: 25 }, { id: "t2-comment", label: "Comment", points: 50 }, { id: "t2-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-3", tweetId: "2046358679272706428", url: "https://x.com/i/status/2046358679272706428", actions: [{ id: "t3-like", label: "Like", points: 25 }, { id: "t3-comment", label: "Comment", points: 50 }, { id: "t3-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-4", tweetId: "2052693406078443692", url: "https://x.com/i/status/2052693406078443692", actions: [{ id: "t4-like", label: "Like", points: 25 }, { id: "t4-comment", label: "Comment", points: 50 }, { id: "t4-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-5", tweetId: "2054172878988251258", url: "https://x.com/i/status/2054172878988251258", actions: [{ id: "t5-like", label: "Like", points: 25 }, { id: "t5-comment", label: "Comment", points: 50 }, { id: "t5-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-6", tweetId: "2053744328703381648", url: "https://x.com/i/status/2053744328703381648", actions: [{ id: "t6-like", label: "Like", points: 25 }, { id: "t6-comment", label: "Comment", points: 50 }, { id: "t6-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-7", tweetId: "2054523111559586162", url: "https://x.com/i/status/2054523111559586162", actions: [{ id: "t7-like", label: "Like", points: 25 }, { id: "t7-comment", label: "Comment", points: 50 }, { id: "t7-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-8", tweetId: "2055981443734548829", url: "https://x.com/i/status/2055981443734548829", actions: [{ id: "t8-like", label: "Like", points: 25 }, { id: "t8-comment", label: "Comment", points: 50 }, { id: "t8-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-9", tweetId: "2056357953309962624", url: "https://x.com/i/status/2056357953309962624", actions: [{ id: "t9-like", label: "Like", points: 25 }, { id: "t9-comment", label: "Comment", points: 50 }, { id: "t9-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-10", tweetId: "2057355754718265779", url: "https://x.com/i/status/2057355754718265779", actions: [{ id: "t10-like", label: "Like", points: 25 }, { id: "t10-comment", label: "Comment", points: 50 }, { id: "t10-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-11", tweetId: "2057789188771385690", url: "https://x.com/i/status/2057789188771385690", actions: [{ id: "t11-like", label: "Like", points: 25 }, { id: "t11-comment", label: "Comment", points: 50 }, { id: "t11-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-12", tweetId: "2055705533596778558", url: "https://x.com/i/status/2055705533596778558", actions: [{ id: "t12-like", label: "Like", points: 25 }, { id: "t12-comment", label: "Comment", points: 50 }, { id: "t12-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-1", tweetId: "2059543689223885305", url: "https://x.com/earnity_/status/2059543689223885305?s=20", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
 ];
 
 const CD_SECS = 60;
