@@ -393,10 +393,9 @@ export default function Forge() {
   const boxCount        = getCount("item_box");
   const ownedElements   = new Set(ELEMENTS.filter((el) => getElementalCount(el) > 0));
   const totalElementals = ELEMENTS.reduce((sum, el) => sum + getElementalCount(el), 0);
-  const canSubmitWallet = ownedElements.size >= ELEMENTALS_FOR_WALLET; // must own all 6 unique types
-
   const boundWallet  = profileData?.wallet_address;
   const alreadySubmittedGTD = !!gtdData?.wallet;
+  const canSubmitWallet = alreadySubmittedGTD || ownedElements.size >= ELEMENTALS_FOR_WALLET;
 
   // GTD submit mutation — burns all 6 elementals and writes to gtd_submissions atomically
   const walletMutation = useMutation({
