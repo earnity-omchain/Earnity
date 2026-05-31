@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Shield, Swords, Clock, Sparkles,
+  Shield, Swords, Clock, Users, Sparkles,
   Zap, Heart, Skull, Gem, ChevronDown,
   Flame, Droplets, Mountain, Wind, TreePine, CloudLightning,
   Copy, Check, Trophy, Scroll, ChevronRight, User,
@@ -401,9 +401,10 @@ function InlineChest({ userId, lastChestOpened }: { userId: string; lastChestOpe
 
 // ── Profile Menu ──────────────────────────────────────────────────────────────
 function ProfileMenu({
-  full, signOut, currentMP, userId, onCheckInClaim,
+  full, referralCodes, signOut, currentMP, userId, onCheckInClaim,
 }: {
   full: any;
+  referralCodes: any[];
   signOut: () => void;
   currentMP?: number;
   userId: string;
@@ -415,10 +416,11 @@ function ProfileMenu({
   const el       = full?.element ? ELEMENT_META[full.element] : null;
   const wallet   = full?.wallet_address;
   const short    = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
-  const username = full?.username ?? "Guest";
+  const username = full?.username ?? "?";
+  // FIX: these fields now exist because landing.tsx fetches them
   const score    = full?.contribution_score ?? 0;
   const coins    = full?.coin_balance ?? 0;
-
+  const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
 
   return (
     <div className="relative">
@@ -426,9 +428,14 @@ function ProfileMenu({
         onClick={() => setOpen((v) => !v)}
         className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors"
       >
-        <div className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
+        {full?.discord_avatar ? (
+          <img src={full.discord_avatar}
+            className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} object-cover`} />
+        ) : (
+          <div className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
             {username.charAt(0).toUpperCase()}
           </div>
+        )}
         <span className="text-sm text-white/80 font-medium hidden sm:block">{username}</span>
         <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -443,9 +450,14 @@ function ProfileMenu({
           >
             {/* Avatar + name */}
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
-              <div className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>
-                {username.charAt(0).toUpperCase()}
-              </div>
+              {full?.discord_avatar ? (
+                <img src={full.discord_avatar}
+                  className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} object-cover`} />
+              ) : (
+                <div className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="font-semibold text-white truncate">{username}</div>
                 {el && (
@@ -499,6 +511,33 @@ function ProfileMenu({
                 </div>
               </div>
             )}
+
+            {/* Referral codes */}
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-white/30" />
+                  <span className="text-[10px] uppercase tracking-wider text-white/40">Referral Codes</span>
+                </div>
+                <span className="text-[10px] text-white/25">+50 pts each</span>
+              </div>
+              {activeCodes.length > 0 ? (
+                activeCodes.slice(0, 3).map((c: any) => (
+                  <div key={c.code}
+                    className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/10 mb-1">
+                    <span className="font-mono text-xs tracking-widest text-white/80">{c.code}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-green-400">Active</span>
+                      <CopyBtn text={c.code} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-white/30 text-center py-2 bg-white/5 rounded-xl">
+                  Codes being generated…
+                </p>
+              )}
+            </div>
 
             {/* Actions */}
             <div className="p-2 space-y-0.5">
@@ -654,14 +693,16 @@ function GuideSection() {
 export default function WaitingPhase({
   session,
   profile,
+  referralCodes,
   checkInStatus,
   checkInOpen,
   setCheckInOpen,
   handleSignOut,
   refetchCheckIn,
 }: {
-  session: Session | null;
+  session: Session;
   profile: any;
+  referralCodes: any[];
   checkInStatus: any;
   checkInOpen: boolean;
   setCheckInOpen: (v: boolean) => void;
@@ -672,7 +713,11 @@ export default function WaitingPhase({
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
+  // FIX: profile prop now contains all fields (coin_balance, contribution_score,
+  // discord_avatar, stronghold_rank, last_chest_opened) because landing.tsx
+  // was updated to select them from Supabase.
   const fullProfile = profile;
+
   const myGuildId = fullProfile?.guild_id;
   const el = fullProfile?.element ? ELEMENT_META[fullProfile.element] : null;
 
@@ -702,14 +747,7 @@ export default function WaitingPhase({
     queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
   };
 
-  // Still loading session / anonymous sign-in hasn't resolved yet
-  if (!userId) {
-    return (
-      <div className="relative min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-white/40" />
-      </div>
-    );
-  }
+  if (!userId) return null;
 
   return (
     <div className="relative min-h-screen text-white">
@@ -724,6 +762,7 @@ export default function WaitingPhase({
         {/* Nav */}
         <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/40 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
+            {/* FIX: use /logo.jpg from public folder */}
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
               <img src="/logo.jpg" alt="Earnity" className="w-full h-full object-cover" />
             </div>
@@ -746,6 +785,7 @@ export default function WaitingPhase({
 
           <ProfileMenu
             full={fullProfile}
+            referralCodes={referralCodes}
             signOut={handleSignOut}
             currentMP={currentMP}
             userId={userId}
