@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Loader2, Shield, Swords, CheckCircle2, AlertCircle,
-  Sparkles, ArrowLeft, LogIn, Copy, Check, ChevronDown,
+  Sparkles, ArrowLeft, Copy, Check, ChevronDown,
   Star, Zap, Clock, Users,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -19,7 +19,6 @@ const BASE = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/
 const ASSETS = {
   background:  `${BASE}/background-1.png`,
   background2: `${BASE}/background-2.png`,
-  // FIX: use /logo.jpg directly from public folder
   logo:        "/logo.jpg",
   seal:        `${BASE}/Seal2.png`,
   fire:        `${BASE}/Fire.png`,
@@ -31,7 +30,7 @@ const ASSETS = {
   coin:        `${BASE}/coin.png`,
 };
 
-type Phase = "loading" | "gate" | "code" | "validating" | "choice" | "rabel" | "pledge" | "waiting";
+type Phase = "loading" | "code" | "validating" | "choice" | "rabel" | "pledge" | "waiting";
 
 const ELEMENTS = [
   { id: "fire",      name: "Fire",      img: ASSETS.fire,      text: "text-orange-400", border: "border-orange-500/40", bg: "bg-orange-500/10", ring: "ring-orange-500/30",  glow: "rgba(249,115,22,0.4)"  },
@@ -117,7 +116,7 @@ function OrbitingElements({ selectedElement, onSelect }: { selectedElement: stri
   );
 }
 
-// ── Inline Profile Dropdown (used in gate/code/choice/pledge/rabel phases) ────
+// ── Inline Profile Dropdown ───────────────────────────────────────────────────
 function ProfileMenu({ full, profile, referralCodes, checkInStatus, signOut }: {
   full: any;
   profile: any;
@@ -336,28 +335,27 @@ export default function Landing() {
 
   const handleSignOut = async () => {
     await auth.signOut();
-    setPhase("gate");
+    setPhase("code");
     setSession(null);
   };
 
+  // ── ANONYMOUS SIGN-IN (replaces Discord auth) ─────────────────────────────
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        await supabase.auth.signInAnonymously();
+      }
       setSessionReady(true);
     });
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
-      if (!mounted) return;
-      if (event === "SIGNED_IN") {
-        setSession(s);
-        setSessionReady(true);
-        if (s?.user?.id) queryClient.invalidateQueries({ queryKey: ["landing-profile", s.user.id] });
-      }
-      if (event === "SIGNED_OUT") { setSession(null); setSessionReady(true); setPhase("gate"); }
-      if (event === "INITIAL_SESSION") { setSession(s); setSessionReady(true); }
+      setSession(s);
+      setSessionReady(true);
+      if (s?.user?.id) queryClient.invalidateQueries({ queryKey: ["landing-profile", s.user.id] });
+      if (event === "SIGNED_OUT") { setSession(null); setPhase("code"); }
     });
-    return () => { mounted = false; listener.subscription.unsubscribe(); };
+
+    return () => listener.subscription.unsubscribe();
   }, [queryClient]);
 
   // FIX: Select ALL fields needed by WaitingPhase + ProfileMenu
@@ -384,7 +382,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (!sessionReady) return;
-    if (!session?.user) { setPhase("gate"); return; }
+    if (!session?.user) { setPhase("code"); return; }
     if (profileLoading) { setPhase("loading"); return; }
     if (!profile?.invite_code_used) { setPhase("code"); return; }
     if ((profile as any)?.element) { setPhase("waiting"); return; }
@@ -395,8 +393,6 @@ export default function Landing() {
       setPhase("waiting");
     }
   }, [session, profile, sessionReady, profileLoading, setLocation]);
-
-  const handleDiscordLogin = () => auth.signInWithDiscord();
 
   const validateMutation = useMutation({
     mutationFn: async (accessCode: string) => {
@@ -466,26 +462,6 @@ export default function Landing() {
       <div className="relative z-10 min-h-[100dvh] flex flex-col">
         <AnimatePresence mode="wait">
 
-          {/* ── GATE ── */}
-          {phase === "gate" && (
-            <motion.div key="gate" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.5 }} className="flex-1 flex items-center justify-center p-6">
-              <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                transition={{ type: "spring", damping: 20, delay: 0.1 }} className="w-full max-w-sm text-center">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.2 }} className="w-20 h-20 mx-auto mb-6">
-                  <img src={ASSETS.seal} alt="Earnity" className="w-full h-full object-contain drop-shadow-2xl" />
-                </motion.div>
-                <h1 className="text-4xl font-bold tracking-tight text-white mb-2">Earnity</h1>
-                <p className="text-sm text-white/50 mb-10">Private beta — invite only</p>
-                <Button onClick={handleDiscordLogin}
-                  className="w-full h-13 gap-2 text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 text-white backdrop-blur-md">
-                  <LogIn className="w-4 h-4" />Sign in with Discord
-                </Button>
-                <p className="mt-5 text-xs text-white/30">Discord required.</p>
-              </motion.div>
-            </motion.div>
-          )}
-
           {/* ── CODE ── */}
           {phase === "code" && (
             <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -493,6 +469,9 @@ export default function Landing() {
               <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                 transition={{ type: "spring", damping: 20, delay: 0.1 }} className="w-full max-w-sm">
                 <div className="text-center mb-8">
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.2 }} className="w-20 h-20 mx-auto mb-6">
+                    <img src={ASSETS.seal} alt="Earnity" className="w-full h-full object-contain drop-shadow-2xl" />
+                  </motion.div>
                   <h1 className="text-2xl font-bold tracking-tight text-white">Enter Access Code</h1>
                   <p className="mt-2 text-sm text-white/50">Redeem your invite to unlock the protocol.</p>
                 </div>
