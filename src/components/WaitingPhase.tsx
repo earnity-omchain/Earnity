@@ -416,8 +416,7 @@ function ProfileMenu({
   const el       = full?.element ? ELEMENT_META[full.element] : null;
   const wallet   = full?.wallet_address;
   const short    = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
-  const username = full?.username ?? "?";
-  // FIX: these fields now exist because landing.tsx fetches them
+  const username = full?.username ?? "Guest";
   const score    = full?.contribution_score ?? 0;
   const coins    = full?.coin_balance ?? 0;
   const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
@@ -700,7 +699,7 @@ export default function WaitingPhase({
   handleSignOut,
   refetchCheckIn,
 }: {
-  session: Session;
+  session: Session | null;
   profile: any;
   referralCodes: any[];
   checkInStatus: any;
@@ -713,11 +712,7 @@ export default function WaitingPhase({
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
-  // FIX: profile prop now contains all fields (coin_balance, contribution_score,
-  // discord_avatar, stronghold_rank, last_chest_opened) because landing.tsx
-  // was updated to select them from Supabase.
   const fullProfile = profile;
-
   const myGuildId = fullProfile?.guild_id;
   const el = fullProfile?.element ? ELEMENT_META[fullProfile.element] : null;
 
@@ -747,7 +742,14 @@ export default function WaitingPhase({
     queryClient.invalidateQueries({ queryKey: ["landing-profile", userId] });
   };
 
-  if (!userId) return null;
+  // Still loading session / anonymous sign-in hasn't resolved yet
+  if (!userId) {
+    return (
+      <div className="relative min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white/40" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen text-white">
@@ -762,7 +764,6 @@ export default function WaitingPhase({
         {/* Nav */}
         <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/40 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            {/* FIX: use /logo.jpg from public folder */}
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
               <img src="/logo.jpg" alt="Earnity" className="w-full h-full object-cover" />
             </div>
