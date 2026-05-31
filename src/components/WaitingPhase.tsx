@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Shield, Swords, Clock, Users, Sparkles,
+  Shield, Swords, Clock, Sparkles,
   Zap, Heart, Skull, Gem, ChevronDown,
   Flame, Droplets, Mountain, Wind, TreePine, CloudLightning,
   Copy, Check, Trophy, Scroll, ChevronRight, User,
@@ -401,10 +401,9 @@ function InlineChest({ userId, lastChestOpened }: { userId: string; lastChestOpe
 
 // ── Profile Menu ──────────────────────────────────────────────────────────────
 function ProfileMenu({
-  full, referralCodes, signOut, currentMP, userId, onCheckInClaim,
+  full, signOut, currentMP, userId, onCheckInClaim,
 }: {
   full: any;
-  referralCodes: any[];
   signOut: () => void;
   currentMP?: number;
   userId: string;
@@ -419,7 +418,7 @@ function ProfileMenu({
   const username = full?.username ?? "Guest";
   const score    = full?.contribution_score ?? 0;
   const coins    = full?.coin_balance ?? 0;
-  const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
+
 
   return (
     <div className="relative">
@@ -427,14 +426,9 @@ function ProfileMenu({
         onClick={() => setOpen((v) => !v)}
         className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition-colors"
       >
-        {full?.discord_avatar ? (
-          <img src={full.discord_avatar}
-            className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} object-cover`} />
-        ) : (
-          <div className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
+        <div className={`w-7 h-7 rounded-lg border ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xs font-bold text-white`}>
             {username.charAt(0).toUpperCase()}
           </div>
-        )}
         <span className="text-sm text-white/80 font-medium hidden sm:block">{username}</span>
         <ChevronDown className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -449,14 +443,9 @@ function ProfileMenu({
           >
             {/* Avatar + name */}
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
-              {full?.discord_avatar ? (
-                <img src={full.discord_avatar}
-                  className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} object-cover`} />
-              ) : (
-                <div className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>
-                  {username.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <div className={`w-14 h-14 rounded-xl border-2 ${el?.border ?? "border-white/20"} bg-white/10 flex items-center justify-center text-xl font-bold text-white`}>
+                {username.charAt(0).toUpperCase()}
+              </div>
               <div className="min-w-0">
                 <div className="font-semibold text-white truncate">{username}</div>
                 {el && (
@@ -510,33 +499,6 @@ function ProfileMenu({
                 </div>
               </div>
             )}
-
-            {/* Referral codes */}
-            <div className="px-4 py-3 border-b border-white/10">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-white/30" />
-                  <span className="text-[10px] uppercase tracking-wider text-white/40">Referral Codes</span>
-                </div>
-                <span className="text-[10px] text-white/25">+50 pts each</span>
-              </div>
-              {activeCodes.length > 0 ? (
-                activeCodes.slice(0, 3).map((c: any) => (
-                  <div key={c.code}
-                    className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/10 mb-1">
-                    <span className="font-mono text-xs tracking-widest text-white/80">{c.code}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-green-400">Active</span>
-                      <CopyBtn text={c.code} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-white/30 text-center py-2 bg-white/5 rounded-xl">
-                  Codes being generated…
-                </p>
-              )}
-            </div>
 
             {/* Actions */}
             <div className="p-2 space-y-0.5">
@@ -692,7 +654,6 @@ function GuideSection() {
 export default function WaitingPhase({
   session,
   profile,
-  referralCodes,
   checkInStatus,
   checkInOpen,
   setCheckInOpen,
@@ -701,7 +662,6 @@ export default function WaitingPhase({
 }: {
   session: Session | null;
   profile: any;
-  referralCodes: any[];
   checkInStatus: any;
   checkInOpen: boolean;
   setCheckInOpen: (v: boolean) => void;
@@ -786,7 +746,6 @@ export default function WaitingPhase({
 
           <ProfileMenu
             full={fullProfile}
-            referralCodes={referralCodes}
             signOut={handleSignOut}
             currentMP={currentMP}
             userId={userId}
