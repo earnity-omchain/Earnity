@@ -38,6 +38,8 @@ const FOLLOW_QUESTS = [
 
 const TWEET_QUESTS = [
   { id: "tweet-1", tweetId: "2059543689223885305", url: "https://x.com/earnity_/status/2059543689223885305?s=20", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-2", tweetId: "2061477989011845522", url: "https://x.com/earnity_/status/2061477989011845522?s=20", actions: [{ id: "t2-like", label: "Like", points: 25 }, { id: "t2-comment", label: "Comment", points: 50 }, { id: "t2-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-3", tweetId: "2061913676995580211", url: "https://x.com/earnity_/status/2061913676995580211?s=20", actions: [{ id: "t3-like", label: "Like", points: 25 }, { id: "t3-comment", label: "Comment", points: 50 }, { id: "t3-retweet", label: "Retweet", points: 25 }] },
 ];
 
 const CD_SECS = 60;
