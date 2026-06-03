@@ -23,7 +23,7 @@ import {
 import Stronghold from "@/components/Stronghold";
 
 // ── Portal Close Countdown ────────────────────────────────────────────────────
-const PORTAL_CLOSE_UTC = new Date("2025-06-05T19:34:00Z");
+const PORTAL_CLOSE_UTC = new Date("2026-06-05T19:34:00Z");
 
 function PortalCountdownBanner() {
   const calc = () => {
