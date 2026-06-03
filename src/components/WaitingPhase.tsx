@@ -22,6 +22,94 @@ import {
 } from "@/lib/supabase-gw";
 import Stronghold from "@/components/Stronghold";
 
+// ── Portal Close Countdown ────────────────────────────────────────────────────
+const PORTAL_CLOSE_UTC = new Date("2025-06-05T19:34:00Z");
+
+function PortalCountdownBanner() {
+  const calc = () => {
+    const diff = PORTAL_CLOSE_UTC.getTime() - Date.now();
+    if (diff <= 0) return { hours: 0, minutes: 0, seconds: 0, expired: true };
+    return {
+      hours:   Math.floor(diff / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+      expired: false,
+    };
+  };
+
+  const [t, setT] = useState(calc);
+  useEffect(() => {
+    setT(calc());
+    const id = setInterval(() => setT(calc()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (t.expired) return null;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="relative overflow-hidden border-b border-red-500/20 bg-black/60 backdrop-blur-md px-4 py-2.5"
+    >
+      {/* Animated red glow sweep */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        animate={{ x: ["-100%", "200%"] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
+        style={{ background: "linear-gradient(90deg, transparent, rgba(239,68,68,0.06), transparent)" }}
+      />
+
+      <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+        {/* Label */}
+        <div className="flex items-center gap-2">
+          <motion.div
+            className="w-1.5 h-1.5 rounded-full bg-red-500"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-red-400/80 font-mono whitespace-nowrap">
+            Portal Closes In
+          </span>
+        </div>
+
+        {/* Digits */}
+        <div className="flex items-center gap-1.5 font-mono">
+          {[
+            { val: pad(t.hours),   label: "HRS"  },
+            { val: pad(t.minutes), label: "MIN"  },
+            { val: pad(t.seconds), label: "SEC"  },
+          ].map(({ val, label }, i) => (
+            <div key={label} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-red-500/40 text-sm font-bold">:</span>}
+              <div className="flex flex-col items-center">
+                <motion.span
+                  key={val}
+                  initial={{ y: -6, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-base sm:text-lg font-black text-white tabular-nums leading-none"
+                  style={{ textShadow: "0 0 12px rgba(239,68,68,0.5)" }}
+                >
+                  {val}
+                </motion.span>
+                <span className="text-[7px] text-red-500/50 tracking-widest mt-0.5">{label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Urgency pill */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-red-500/20 bg-red-500/8">
+          <span className="text-[10px] text-red-400/70 font-mono">Forge all 6 before it's too late</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Daily Check-In reward definitions ─────────────────────────────────────────
 const CHECKIN_REWARDS: {
   day: number;
@@ -417,7 +505,6 @@ function ProfileMenu({
   const wallet   = full?.wallet_address;
   const short    = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : null;
   const username = full?.username ?? "?";
-  // FIX: these fields now exist because landing.tsx fetches them
   const score    = full?.contribution_score ?? 0;
   const coins    = full?.coin_balance ?? 0;
   const activeCodes = (referralCodes ?? []).filter((c: any) => c.is_active && !c.used_by);
@@ -448,7 +535,6 @@ function ProfileMenu({
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-2xl shadow-2xl z-[100] overflow-hidden"
           >
-            {/* Avatar + name */}
             <div className="p-4 border-b border-white/10 flex items-center gap-3">
               {full?.discord_avatar ? (
                 <img src={full.discord_avatar}
@@ -469,7 +555,6 @@ function ProfileMenu({
               </div>
             </div>
 
-            {/* MP bar */}
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] uppercase tracking-wider text-yellow-400 flex items-center gap-1">
@@ -483,7 +568,6 @@ function ProfileMenu({
               </div>
             </div>
 
-            {/* Points + Coins */}
             <div className="grid grid-cols-2 divide-x divide-white/8 border-b border-white/10">
               <div className="py-3 text-center">
                 <div className="text-base font-bold text-white tabular-nums">{score.toLocaleString()}</div>
@@ -498,10 +582,8 @@ function ProfileMenu({
               </div>
             </div>
 
-            {/* Daily Check-In */}
             <InlineDailyCheckIn userId={userId} onClaimed={onCheckInClaim} />
 
-            {/* Wallet */}
             {short && (
               <div className="px-4 py-3 border-b border-white/10">
                 <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Bound Wallet</div>
@@ -512,7 +594,6 @@ function ProfileMenu({
               </div>
             )}
 
-            {/* Referral codes */}
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
@@ -539,7 +620,6 @@ function ProfileMenu({
               )}
             </div>
 
-            {/* Actions */}
             <div className="p-2 space-y-0.5">
               <button onClick={() => { setLocation("/profile"); setOpen(false); }}
                 className="w-full px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/8 transition-colors text-left flex items-center gap-2">
@@ -713,11 +793,7 @@ export default function WaitingPhase({
   const queryClient = useQueryClient();
   const userId = session?.user?.id;
 
-  // FIX: profile prop now contains all fields (coin_balance, contribution_score,
-  // discord_avatar, stronghold_rank, last_chest_opened) because landing.tsx
-  // was updated to select them from Supabase.
   const fullProfile = profile;
-
   const myGuildId = fullProfile?.guild_id;
   const el = fullProfile?.element ? ELEMENT_META[fullProfile.element] : null;
 
@@ -759,10 +835,12 @@ export default function WaitingPhase({
       </div>
 
       <div className="relative z-10">
+        {/* Portal countdown banner — sits above nav */}
+        <PortalCountdownBanner />
+
         {/* Nav */}
         <nav className="sticky top-0 z-50 flex items-center justify-between px-5 sm:px-10 py-4 border-b border-white/8 bg-black/40 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            {/* FIX: use /logo.jpg from public folder */}
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15">
               <img src="/logo.jpg" alt="Earnity" className="w-full h-full object-cover" />
             </div>
