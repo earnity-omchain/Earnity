@@ -1,13 +1,19 @@
 import { useLocation } from "wouter";
 import { motion, AnimatePresence, useAnimationFrame } from "framer-motion";
 import { ArrowLeft, Wallet, Package, CheckCircle2, Loader2, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInventory, openItemBox } from "@/lib/supabase-gw";
 import { supabase } from "@/lib/supabase";
 import { ELEMENT_META, GAME_ASSETS, LOGO } from "@/lib/assets";
 import { SHARDS_PER_ELEMENTAL, ELEMENTALS_FOR_WALLET, getShardItemType } from "@/lib/game-config";
+
+// ── Offset config ─────────────────────────────────────────────────────────────
+// Set YOUR_CURRENT_DB_COUNT to your actual Supabase count right now.
+// Display will start at 2374 and increment with every new real submission.
+const YOUR_CURRENT_DB_COUNT = 3127; // <-- update this
+const GTD_COUNT_OFFSET = 2374 - YOUR_CURRENT_DB_COUNT;
 
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
 const ASSETS = {
@@ -343,6 +349,86 @@ function ShardCards({ inventory, onForge, isForging }: {
   );
 }
 
+// ── GTD Live Feed ─────────────────────────────────────────────────────────────
+function GTDLiveFeed({ count, recent }: {
+  count: number;
+  recent: { wallet: string; submitted_at: string }[];
+}) {
+  const [prevCount, setPrevCount] = useState(count);
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    if (count > prevCount) {
+      setFlash(true);
+      setTimeout(() => setFlash(false), 800);
+      setPrevCount(count);
+    }
+  }, [count, prevCount]);
+
+  return (
+    <div className="w-full max-w-sm mx-auto mt-12">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-3 text-center font-mono">
+        Live GTD Board
+      </p>
+      <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md p-5">
+
+        {/* Counter */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest font-mono mb-0.5">Spots Claimed</p>
+            <motion.p
+              key={count}
+              initial={{ y: -10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="text-4xl font-black tabular-nums"
+              style={{ color: flash ? "#86efac" : "white" }}>
+              {count.toLocaleString()}
+            </motion.p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-[10px] text-green-400 font-mono uppercase tracking-wider">Live</span>
+            </div>
+            <p className="text-[9px] text-white/30 font-mono">updates in real-time</p>
+          </div>
+        </div>
+
+        {/* Recent submissions */}
+        {recent.length > 0 && (
+          <div className="border-t border-white/10 pt-3 space-y-2">
+            <p className="text-[9px] uppercase tracking-widest text-white/35 font-mono mb-2">Recent</p>
+            {recent.map((s, i) => (
+              <motion.div
+                key={s.wallet + s.submitted_at}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-400/70 flex-shrink-0" />
+                  <span className="text-[11px] font-mono text-white/60">
+                    {s.wallet.slice(0, 6)}…{s.wallet.slice(-4)}
+                  </span>
+                </div>
+                <span className="text-[9px] text-white/30 font-mono">
+                  {new Date(s.submitted_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {recent.length === 0 && (
+          <p className="text-center text-[10px] text-white/30 pt-1">
+            No submissions yet — be the first to forge all 6
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Forge() {
   const [, setLocation]     = useLocation();
@@ -381,6 +467,34 @@ export default function Forge() {
     enabled: !!profile?.id,
   });
 
+  // Live GTD count + recent submissions
+  const { data: gtdStats } = useQuery({
+    queryKey: ["gtd-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("gtd_submissions")
+        .select("*", { count: "exact", head: true });
+      const { data: recent } = await supabase
+        .from("gtd_submissions")
+        .select("wallet, submitted_at")
+        .order("submitted_at", { ascending: false })
+        .limit(5);
+      return { count: count ?? 0, recent: recent ?? [] };
+    },
+    refetchInterval: 15_000,
+  });
+
+  // Realtime: invalidate count on new submission
+  useEffect(() => {
+    const channel = supabase
+      .channel("gtd-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gtd_submissions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["gtd-count"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const { data: inventory } = useQuery({
     queryKey: ["inventory", profile?.id],
     queryFn:  () => getInventory(profile!.id),
@@ -392,12 +506,14 @@ export default function Forge() {
 
   const boxCount        = getCount("item_box");
   const ownedElements   = new Set(ELEMENTS.filter((el) => getElementalCount(el) > 0));
-  const totalElementals = ELEMENTS.reduce((sum, el) => sum + getElementalCount(el), 0);
-  const boundWallet  = profileData?.wallet_address;
+  const boundWallet     = profileData?.wallet_address;
   const alreadySubmittedGTD = !!gtdData?.wallet;
   const canSubmitWallet = alreadySubmittedGTD || ownedElements.size >= ELEMENTALS_FOR_WALLET;
 
-  // GTD submit mutation — burns all 6 elementals and writes to gtd_submissions atomically
+  // Apply display offset — starts at 2374, increments with real new submissions
+  const displayCount = gtdStats ? Math.max(0, gtdStats.count + GTD_COUNT_OFFSET) : null;
+
+  // GTD submit mutation
   const walletMutation = useMutation({
     mutationFn: async (walletAddress: string) => {
       const { data, error } = await supabase.rpc("submit_gtd_and_burn", {
@@ -410,6 +526,7 @@ export default function Forge() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gtd-submission", profile?.id] });
       queryClient.invalidateQueries({ queryKey: ["inventory", profile?.id] });
+      queryClient.invalidateQueries({ queryKey: ["gtd-count"] });
       setShowWalletModal(false);
       showToast("GTD submission successful!");
     },
@@ -421,15 +538,12 @@ export default function Forge() {
 
   const handleWalletButton = () => {
     if (alreadySubmittedGTD) {
-      // Already submitted — just confirm
       showToast(`Already submitted: ${gtdData!.wallet.slice(0, 6)}…${gtdData!.wallet.slice(-4)}`);
       return;
     }
     if (boundWallet) {
-      // Has bound wallet — submit it directly to GTD, no modal needed
       walletMutation.mutate(boundWallet);
     } else {
-      // No wallet at all — open modal to enter one
       setShowWalletModal(true);
     }
   };
@@ -534,6 +648,14 @@ export default function Forge() {
             Collect all 6 elementals to unlock wallet submission for GTD
           </p>
         </motion.div>
+
+        {/* GTD Live Feed */}
+        {displayCount !== null && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
+            className="w-full">
+            <GTDLiveFeed count={displayCount} recent={gtdStats!.recent} />
+          </motion.div>
+        )}
 
         {/* GTD unlock */}
         {canSubmitWallet && (
