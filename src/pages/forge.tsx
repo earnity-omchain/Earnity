@@ -12,7 +12,7 @@ import { SHARDS_PER_ELEMENTAL, ELEMENTALS_FOR_WALLET, getShardItemType } from "@
 // ── Offset config ─────────────────────────────────────────────────────────────
 // Set YOUR_CURRENT_DB_COUNT to your actual Supabase count right now.
 // Display will start at 2374 and increment with every new real submission.
-const YOUR_CURRENT_DB_COUNT = 3127; // <-- update this
+const YOUR_CURRENT_DB_COUNT = 3732; // <-- update this
 const GTD_COUNT_OFFSET = 2374 - YOUR_CURRENT_DB_COUNT;
 
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
