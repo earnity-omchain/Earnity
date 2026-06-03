@@ -10,9 +10,7 @@ import { ELEMENT_META, GAME_ASSETS, LOGO } from "@/lib/assets";
 import { SHARDS_PER_ELEMENTAL, ELEMENTALS_FOR_WALLET, getShardItemType } from "@/lib/game-config";
 
 // ── Offset config ─────────────────────────────────────────────────────────────
-// Set YOUR_CURRENT_DB_COUNT to your actual Supabase count right now.
-// Display will start at 2374 and increment with every new real submission.
-const YOUR_CURRENT_DB_COUNT = 3732; // <-- update this
+const YOUR_CURRENT_DB_COUNT = 3732;
 const GTD_COUNT_OFFSET = 2374 - YOUR_CURRENT_DB_COUNT;
 
 const CDN = "https://gmyplyxwxmkvptimzgid.supabase.co/storage/v1/object/public/Assets";
@@ -43,7 +41,6 @@ const RING_POSITIONS: { angle: number; element: Element }[] = [
   { angle: 210,  element: "wind" },
 ];
 
-// EVM wallet address validation
 function isValidEVMAddress(addr: string) {
   return /^0x[0-9a-fA-F]{40}$/.test(addr.trim());
 }
@@ -435,7 +432,7 @@ export default function Forge() {
   const { profile }         = useAuth();
   const queryClient         = useQueryClient();
 
-  const [reward, setReward]           = useState<BoxReward | null>(null);
+  const [reward, setReward]           = useState<<BoxReward | null>(null);
   const [openingMax, setOpeningMax]   = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletToast, setWalletToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -456,7 +453,7 @@ export default function Forge() {
     enabled: !!profile?.id,
   });
 
-  // Check if already submitted to GTD
+  // Check if already submitted to GTD (this is fine with RLS — user_id = auth.uid())
   const { data: gtdData } = useQuery({
     queryKey: ["gtd-submission", profile?.id],
     queryFn: async () => {
@@ -467,19 +464,16 @@ export default function Forge() {
     enabled: !!profile?.id,
   });
 
-  // Live GTD count + recent submissions
+  // Live GTD count + recent submissions — SINGLE RPC, bypasses RLS
   const { data: gtdStats } = useQuery({
     queryKey: ["gtd-count"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("gtd_submissions")
-        .select("*", { count: "exact", head: true });
-      const { data: recent } = await supabase
-        .from("gtd_submissions")
-        .select("wallet, submitted_at")
-        .order("submitted_at", { ascending: false })
-        .limit(5);
-      return { count: count ?? 0, recent: recent ?? [] };
+      const { data, error } = await supabase.rpc("get_gtd_stats");
+      if (error) throw error;
+      return {
+        count: data?.count ?? 0,
+        recent: data?.recent ?? [],
+      };
     },
     refetchInterval: 15_000,
   });
