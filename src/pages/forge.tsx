@@ -432,7 +432,7 @@ export default function Forge() {
   const { profile }         = useAuth();
   const queryClient         = useQueryClient();
 
-  const [reward, setReward]           = useState<<BoxReward | null>(null);
+  const [reward, setReward]           = useState<BoxReward | null>(null);
   const [openingMax, setOpeningMax]   = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletToast, setWalletToast] = useState<{ msg: string; ok: boolean } | null>(null);
