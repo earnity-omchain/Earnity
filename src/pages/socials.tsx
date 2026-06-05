@@ -37,9 +37,7 @@ const FOLLOW_QUESTS = [
 ];
 
 const TWEET_QUESTS = [
-  { id: "tweet-1", tweetId: "2059543689223885305", url: "https://x.com/earnity_/status/2059543689223885305?s=20", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-2", tweetId: "2061477989011845522", url: "https://x.com/earnity_/status/2061477989011845522?s=20", actions: [{ id: "t2-like", label: "Like", points: 25 }, { id: "t2-comment", label: "Comment", points: 50 }, { id: "t2-retweet", label: "Retweet", points: 25 }] },
-  { id: "tweet-3", tweetId: "2061913676995580211", url: "https://x.com/earnity_/status/2061913676995580211?s=20", actions: [{ id: "t3-like", label: "Like", points: 25 }, { id: "t3-comment", label: "Comment", points: 50 }, { id: "t3-retweet", label: "Retweet", points: 25 }] },
+  { id: "tweet-1", tweetId: "2062922344193007668", url: "https://x.com/earnity_/status/2062922344193007668?s=20", actions: [{ id: "t1-like", label: "Like", points: 25 }, { id: "t1-comment", label: "Comment", points: 50 }, { id: "t1-retweet", label: "Retweet", points: 25 }] },
 ];
 
 const CD_SECS = 60;
@@ -407,7 +405,7 @@ function ProfileMenu({ full, profile, referralCodes, signOut }: any) {
             </div>
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-white/30" /><span className="text-[10px] uppercase tracking-wider text-white/40">Referral Codes</span></div><span className="text-[10px] text-white/25">+50 pts each</span></div>
-              {activeCodes.length > 0 ? <div className="space-y-1.5">{activeCodes.slice(0, 3).map((c: any) => (<div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/10"><span className="font-mono text-xs tracking-widest text-white/80">{c.code}</span><div className="flex items-center gap-1.5"><span className="text-[10px] text-green-400">Active</span><CopyBtn text={c.code} /></div></div>))}</div> : <p className="text-xs text-white/30 text-center py-2 bg-white/5 rounded-xl border border-white/8">Codes being generated…</p>}
+               {activeCodes.length > 0 ? <div className="space-y-1.5">{activeCodes.slice(0, 3).map((c: any) => (<div key={c.code} className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/10"><span className="font-mono text-xs tracking-widest text-white/80">{c.code}</span><div className="flex items-center gap-1.5"><span className="text-[10px] text-green-400">Active</span><CopyBtn text={c.code} /></div></div>))}</div> : <p className="text-xs text-white/30 text-center py-2 bg-white/5 rounded-xl border border-white/8">Codes being generated…</p>}
               {usedCodes.length > 0 && <p className="text-[10px] text-white/30 mt-2 text-center">{usedCodes.length} referral{usedCodes.length !== 1 ? "s" : ""} · {usedCodes.length * 50} pts earned</p>}
             </div>
             <div className="p-2"><button onClick={() => { signOut(); setOpen(false); }} className="w-full px-3 py-2 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">Sign Out</button></div>
